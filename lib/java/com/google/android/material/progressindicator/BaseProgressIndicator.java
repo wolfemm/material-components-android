@@ -47,6 +47,7 @@ import com.google.android.material.internal.ThemeEnforcement;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * This class contains the common functions shared in different types of progress indicators. This
@@ -195,10 +196,20 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
    * the delay elapsed before starting the show action. Otherwise start showing immediately.
    */
   public void show() {
+    removeCallbacks(delayedHide);
+
+    if (getVisibility() == VISIBLE) {
+      // No need to show, as the component is already visible.
+      pendingDelayedAction.set(null);
+      return;
+    }
+
     if (showDelay > 0) {
-      removeCallbacks(delayedShow);
-      postDelayed(delayedShow, showDelay);
+      if (pendingDelayedAction.getAndSet(delayedShow) != delayedShow) {
+        postDelayed(delayedShow, showDelay);
+      }
     } else {
+      pendingDelayedAction.set(null);
       delayedShow.run();
     }
   }
@@ -222,20 +233,27 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
    * until the delay elapsed before starting the hide action. Otherwise start hiding immediately.
    */
   public void hide() {
+    removeCallbacks(delayedShow);
+    pendingDelayedAction.compareAndSet(delayedShow, null);
+
     if (getVisibility() != VISIBLE) {
-      // No need to hide, as the component is still invisible.
-      removeCallbacks(delayedShow);
+      // No need to hide, as the component is already invisible.
+      pendingDelayedAction.set(null);
       return;
     }
 
-    removeCallbacks(delayedHide);
     long timeElapsedSinceShowStart = SystemClock.uptimeMillis() - lastShowStartTime;
     boolean enoughTimeElapsed = timeElapsedSinceShowStart >= minHideDelay;
     if (enoughTimeElapsed) {
+      removeCallbacks(delayedHide);
+      pendingDelayedAction.set(null);
       delayedHide.run();
       return;
     }
-    postDelayed(delayedHide, /*delayMillis=*/ minHideDelay - timeElapsedSinceShowStart);
+
+    if (pendingDelayedAction.getAndSet(delayedHide) != delayedHide) {
+      postDelayed(delayedHide, /*delayMillis=*/ minHideDelay - timeElapsedSinceShowStart);
+    }
   }
 
   /**
@@ -769,6 +787,8 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
 
   // ************************ In-place defined parameters ****************************
 
+  private final AtomicReference<Runnable> pendingDelayedAction = new AtomicReference<Runnable>(null);
+
   /**
    * The runnable, which executes the start action. This is used to schedule delayed show actions.
    *
@@ -778,6 +798,7 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
       new Runnable() {
         @Override
         public void run() {
+          pendingDelayedAction.compareAndSet(delayedShow, null);
           internalShow();
         }
       };
@@ -791,6 +812,7 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
       new Runnable() {
         @Override
         public void run() {
+          pendingDelayedAction.compareAndSet(delayedHide, null);
           internalHide();
           lastShowStartTime = -1L;
         }
