@@ -64,6 +64,16 @@ import java.util.LinkedHashSet;
 
 /** A {@link Dialog} with a header, {@link MaterialCalendar}, and set of actions. */
 public final class MaterialDatePicker<S> extends DialogFragment {
+  public static final String REQUEST_KEY = "REQUEST_KEY";
+  public static final String SELECTION_KEY = "SELECTION_KEY";
+  public static final String RESULT_TYPE_KEY = "RESULT_TYPE";
+
+  public static final String DEFAULT_REQUEST_KEY = "DATE_PICKER";
+
+  public static final int RESULT_TYPE_POSITIVE = 1;
+  public static final int RESULT_TYPE_NEGATIVE = 2;
+  public static final int RESULT_TYPE_CANCELLED = 3;
+  public static final int RESULT_TYPE_DISMISSED = 4;
 
   private static final String OVERRIDE_THEME_RES_ID = "OVERRIDE_THEME_RES_ID";
   private static final String DATE_SELECTOR_KEY = "DATE_SELECTOR_KEY";
@@ -76,9 +86,9 @@ public final class MaterialDatePicker<S> extends DialogFragment {
   private static final String NEGATIVE_BUTTON_TEXT_KEY = "NEGATIVE_BUTTON_TEXT_KEY";
   private static final String INPUT_MODE_KEY = "INPUT_MODE_KEY";
 
-  static final Object CONFIRM_BUTTON_TAG = "CONFIRM_BUTTON_TAG";
-  static final Object CANCEL_BUTTON_TAG = "CANCEL_BUTTON_TAG";
-  static final Object TOGGLE_BUTTON_TAG = "TOGGLE_BUTTON_TAG";
+  static final String CONFIRM_BUTTON_TAG = "CONFIRM_BUTTON_TAG";
+  static final String CANCEL_BUTTON_TAG = "CANCEL_BUTTON_TAG";
+  static final String TOGGLE_BUTTON_TAG = "TOGGLE_BUTTON_TAG";
 
   /** Date picker will start with calendar view. */
   public static final int INPUT_MODE_CALENDAR = 0;
@@ -122,6 +132,8 @@ public final class MaterialDatePicker<S> extends DialogFragment {
   private final LinkedHashSet<DialogInterface.OnDismissListener> onDismissListeners =
       new LinkedHashSet<>();
 
+  @Nullable
+  private String requestKey;
   @StyleRes private int overrideThemeResId;
   @Nullable private DateSelector<S> dateSelector;
   private PickerFragment<S> pickerFragment;
@@ -147,6 +159,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
   static <S> MaterialDatePicker<S> newInstance(@NonNull Builder<S> options) {
     MaterialDatePicker<S> materialDatePickerDialogFragment = new MaterialDatePicker<>();
     Bundle args = new Bundle();
+    args.putString(REQUEST_KEY, options.requestKey);
     args.putInt(OVERRIDE_THEME_RES_ID, options.overrideThemeResId);
     args.putParcelable(DATE_SELECTOR_KEY, options.dateSelector);
     args.putParcelable(CALENDAR_CONSTRAINTS_KEY, options.calendarConstraints);
@@ -164,6 +177,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
   @Override
   public final void onSaveInstanceState(@NonNull Bundle bundle) {
     super.onSaveInstanceState(bundle);
+    bundle.putString(REQUEST_KEY, requestKey);
     bundle.putInt(OVERRIDE_THEME_RES_ID, overrideThemeResId);
     bundle.putParcelable(DATE_SELECTOR_KEY, dateSelector);
 
@@ -185,6 +199,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
   public final void onCreate(@Nullable Bundle bundle) {
     super.onCreate(bundle);
     Bundle activeBundle = bundle == null ? getArguments() : bundle;
+    requestKey = activeBundle.getString(REQUEST_KEY, DEFAULT_REQUEST_KEY);
     overrideThemeResId = activeBundle.getInt(OVERRIDE_THEME_RES_ID);
     dateSelector = activeBundle.getParcelable(DATE_SELECTOR_KEY);
     calendarConstraints = activeBundle.getParcelable(CALENDAR_CONSTRAINTS_KEY);
@@ -273,6 +288,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
         new View.OnClickListener() {
           @Override
           public void onClick(View v) {
+            setResult(RESULT_TYPE_POSITIVE, getSelection());
             for (MaterialPickerOnPositiveButtonClickListener<? super S> listener :
                 onPositiveButtonClickListeners) {
               listener.onPositiveButtonClick(getSelection());
@@ -292,6 +308,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
         new View.OnClickListener() {
           @Override
           public void onClick(View v) {
+            setResult(RESULT_TYPE_NEGATIVE, null);
             for (View.OnClickListener listener : onNegativeButtonClickListeners) {
               listener.onClick(v);
             }
@@ -331,6 +348,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
 
   @Override
   public final void onCancel(@NonNull DialogInterface dialogInterface) {
+    setResult(RESULT_TYPE_CANCELLED, null);
     for (DialogInterface.OnCancelListener listener : onCancelListeners) {
       listener.onCancel(dialogInterface);
     }
@@ -339,6 +357,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
 
   @Override
   public final void onDismiss(@NonNull DialogInterface dialogInterface) {
+    setResult(RESULT_TYPE_DISMISSED, null);
     for (DialogInterface.OnDismissListener listener : onDismissListeners) {
       listener.onDismiss(dialogInterface);
     }
@@ -356,6 +375,23 @@ public final class MaterialDatePicker<S> extends DialogFragment {
   @Nullable
   public final S getSelection() {
     return getDateSelector().getSelection();
+  }
+
+  private void setResult(int type, @Nullable S selection) {
+    final String key = (requestKey == null) ? DEFAULT_REQUEST_KEY : requestKey;
+    final Bundle resultBundle = new Bundle(2);
+
+    resultBundle.putInt(RESULT_TYPE_KEY, type);
+
+    if (selection instanceof Long) {
+      resultBundle.putLong(SELECTION_KEY, (Long) selection);
+    } else if (selection instanceof Integer) {
+      resultBundle.putInt(SELECTION_KEY, (Integer) selection);
+    } else if (selection instanceof String) {
+      resultBundle.putString(SELECTION_KEY, (String) selection);
+    }
+
+    getParentFragmentManager().setFragmentResult(key, resultBundle);
   }
 
   private void enableEdgeToEdgeIfNeeded(Window window) {
@@ -591,6 +627,10 @@ public final class MaterialDatePicker<S> extends DialogFragment {
   public static final class Builder<S> {
 
     final DateSelector<S> dateSelector;
+
+    @Nullable
+    String requestKey = null;
+
     int overrideThemeResId = 0;
 
     CalendarConstraints calendarConstraints;
@@ -730,6 +770,13 @@ public final class MaterialDatePicker<S> extends DialogFragment {
     @NonNull
     public Builder<S> setInputMode(@InputMode int inputMode) {
       this.inputMode = inputMode;
+      return this;
+    }
+
+    /** Sets the request key to be returned via the result contract API. */
+    @NonNull
+    public Builder<S> setRequestKey(@Nullable String requestKey) {
+      this.requestKey = requestKey;
       return this;
     }
 
