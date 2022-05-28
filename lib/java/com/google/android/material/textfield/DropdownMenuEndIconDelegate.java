@@ -41,13 +41,12 @@ import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
 import android.widget.Spinner;
 import androidx.annotation.ChecksSdkIntAtLeast;
-import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.accessibility.AccessibilityManagerCompat.TouchExplorationStateChangeListener;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import com.google.android.material.animation.AnimationUtils;
-import com.google.android.material.textfield.TextInputLayout.AccessibilityDelegate;
 import com.google.android.material.textfield.TextInputLayout.BoxBackgroundMode;
 
 /** Default initialization of the exposed dropdown menu {@link TextInputLayout.EndIconMode}. */
@@ -62,82 +61,43 @@ class DropdownMenuEndIconDelegate extends EndIconDelegate {
   @Nullable
   private AutoCompleteTextView autoCompleteTextView;
 
-  private final TextInputLayout.AccessibilityDelegate accessibilityDelegate =
-      new AccessibilityDelegate(textInputLayout) {
-        @Override
-        public void onInitializeAccessibilityNodeInfo(
-            View host, @NonNull AccessibilityNodeInfoCompat info) {
-          super.onInitializeAccessibilityNodeInfo(host, info);
-          // The non-editable exposed dropdown menu behaves like a Spinner.
-          if (!isEditable(autoCompleteTextView)) {
-            info.setClassName(Spinner.class.getName());
-          }
-          if (info.isShowingHintText()) {
-            // Set hint text to null so TalkBack doesn't announce the label twice when there is no
-            // item selected.
-            info.setHintText(null);
-          }
-        }
-
-        @Override
-        public void onPopulateAccessibilityEvent(View host, @NonNull AccessibilityEvent event) {
-          super.onPopulateAccessibilityEvent(host, event);
-          // If dropdown is non editable, layout click is what triggers showing/hiding the popup
-          // list. Otherwise, arrow icon alone is what triggers it.
-          if (event.getEventType() == TYPE_VIEW_CLICKED
-              && accessibilityManager.isEnabled()
-              && !isEditable(autoCompleteTextView)) {
-            showHideDropdown();
-            updateDropdownPopupDirty();
-          }
-        }
-      };
-
   private final OnClickListener onIconClickListener = view -> showHideDropdown();
 
   private final OnFocusChangeListener onEditTextFocusChangeListener = (view, hasFocus) -> {
-    endLayout.setEndIconActivated(hasFocus);
+    editTextHasFocus = hasFocus;
+    refreshIconState();
     if (!hasFocus) {
       setEndIconChecked(false);
       dropdownPopupDirty = false;
     }
   };
 
-  private boolean dropdownPopupDirty = false;
-  private boolean isEndIconChecked = false;
-  private long dropdownPopupActivatedAt = Long.MAX_VALUE;
-  @Nullable private AccessibilityManager accessibilityManager;
-  private ValueAnimator fadeOutAnim;
-  private ValueAnimator fadeInAnim;
-
-  DropdownMenuEndIconDelegate(
-      @NonNull EndCompoundLayout endLayout, @DrawableRes int customEndIcon) {
-    super(endLayout, customEndIcon);
-  }
-
-  @Override
-  void setUp() {
-    // For lollipop+, the arrow icon changes orientation based on dropdown popup, otherwise it
-    // always points down.
-    int drawableResId =
-        customEndIcon == 0
-            ? (IS_LOLLIPOP ? R.drawable.mtrl_dropdown_arrow : R.drawable.mtrl_ic_arrow_drop_down)
-            : customEndIcon;
-    endLayout.setEndIconDrawable(drawableResId);
-    endLayout.setEndIconContentDescription(
-        endLayout.getResources().getText(R.string.exposed_dropdown_menu_content_description));
-    initAnimators();
-    accessibilityManager =
-        (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);
-    if (VERSION.SDK_INT >= VERSION_CODES.KITKAT) {
-      accessibilityManager.addTouchExplorationStateChangeListener(enabled -> {
+  private final TouchExplorationStateChangeListener touchExplorationStateChangeListener =
+      (boolean enabled) -> {
         if (autoCompleteTextView != null && !isEditable(autoCompleteTextView)) {
           ViewCompat.setImportantForAccessibility(
               endIconView,
               enabled ? IMPORTANT_FOR_ACCESSIBILITY_NO : IMPORTANT_FOR_ACCESSIBILITY_YES);
         }
-      });
-    }
+      };
+
+  private boolean editTextHasFocus;
+  private boolean dropdownPopupDirty;
+  private boolean isEndIconChecked;
+  private long dropdownPopupActivatedAt = Long.MAX_VALUE;
+  @Nullable private AccessibilityManager accessibilityManager;
+  private ValueAnimator fadeOutAnim;
+  private ValueAnimator fadeInAnim;
+
+  DropdownMenuEndIconDelegate(@NonNull EndCompoundLayout endLayout) {
+    super(endLayout);
+  }
+
+  @Override
+  void setUp() {
+    initAnimators();
+    accessibilityManager =
+        (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);
   }
 
   @SuppressLint("ClickableViewAccessibility") // There's an accessibility delegate that handles
@@ -151,6 +111,43 @@ class DropdownMenuEndIconDelegate extends EndIconDelegate {
         autoCompleteTextView.setOnDismissListener(null);
       }
     }
+  }
+
+  @Override
+  public TouchExplorationStateChangeListener getTouchExplorationStateChangeListener() {
+    return touchExplorationStateChangeListener;
+  }
+
+  @Override
+  int getIconDrawableResId() {
+    // For lollipop+, the arrow icon changes orientation based on dropdown popup, otherwise it
+    // always points down.
+    return IS_LOLLIPOP ? R.drawable.mtrl_dropdown_arrow : R.drawable.mtrl_ic_arrow_drop_down;
+  }
+
+  @Override
+  int getIconContentDescriptionResId() {
+    return R.string.exposed_dropdown_menu_content_description;
+  }
+
+  @Override
+  boolean isIconCheckable() {
+    return true;
+  }
+
+  @Override
+  boolean isIconChecked() {
+    return isEndIconChecked;
+  }
+
+  @Override
+  boolean isIconActivable() {
+    return true;
+  }
+
+  @Override
+  boolean isIconActivated() {
+    return editTextHasFocus;
   }
 
   @Override
@@ -172,13 +169,10 @@ class DropdownMenuEndIconDelegate extends EndIconDelegate {
   public void onEditTextAttached(@Nullable EditText editText) {
     this.autoCompleteTextView = castAutoCompleteTextViewOrThrow(editText);
     setUpDropdownShowHideBehavior();
-    textInputLayout.setEndIconCheckable(true);
     textInputLayout.setErrorIconDrawable(null);
     if (!isEditable(editText) && accessibilityManager.isTouchExplorationEnabled()) {
       ViewCompat.setImportantForAccessibility(endIconView, IMPORTANT_FOR_ACCESSIBILITY_NO);
     }
-    textInputLayout.setTextInputAccessibilityDelegate(accessibilityDelegate);
-
     textInputLayout.setEndIconVisible(true);
   }
 
@@ -202,6 +196,32 @@ class DropdownMenuEndIconDelegate extends EndIconDelegate {
     return onEditTextFocusChangeListener;
   }
 
+  @Override
+  public void onInitializeAccessibilityNodeInfo(
+      View host, @NonNull AccessibilityNodeInfoCompat info) {
+    // The non-editable exposed dropdown menu behaves like a Spinner.
+    if (!isEditable(autoCompleteTextView)) {
+      info.setClassName(Spinner.class.getName());
+    }
+    if (info.isShowingHintText()) {
+      // Set hint text to null so TalkBack doesn't announce the label twice when there is no
+      // item selected.
+      info.setHintText(null);
+    }
+  }
+
+  @Override
+  public void onPopulateAccessibilityEvent(View host, @NonNull AccessibilityEvent event) {
+    // If dropdown is non editable, layout click is what triggers showing/hiding the popup
+    // list. Otherwise, arrow icon alone is what triggers it.
+    if (event.getEventType() == TYPE_VIEW_CLICKED
+        && accessibilityManager.isEnabled()
+        && !isEditable(autoCompleteTextView)) {
+      showHideDropdown();
+      updateDropdownPopupDirty();
+    }
+  }
+
   private void showHideDropdown() {
     if (autoCompleteTextView == null) {
       return;
@@ -214,7 +234,7 @@ class DropdownMenuEndIconDelegate extends EndIconDelegate {
         setEndIconChecked(!isEndIconChecked);
       } else {
         isEndIconChecked = !isEndIconChecked;
-        endIconView.toggle();
+        refreshIconState();
       }
       if (isEndIconChecked) {
         autoCompleteTextView.requestFocus();
@@ -286,7 +306,7 @@ class DropdownMenuEndIconDelegate extends EndIconDelegate {
         new AnimatorListenerAdapter() {
           @Override
           public void onAnimationEnd(Animator animation) {
-            endIconView.setChecked(isEndIconChecked);
+            refreshIconState();
             fadeInAnim.start();
           }
         });

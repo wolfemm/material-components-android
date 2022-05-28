@@ -16,7 +16,7 @@
 
 package com.google.android.material.theme;
 
-import com.google.android.material.R;
+import com.google.android.material.test.R;
 
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static androidx.test.core.app.ApplicationProvider.getApplicationContext;
@@ -362,6 +362,11 @@ public class ThemeTest {
           R.attr.floatingActionButtonSecondaryStyle,
           R.attr.floatingActionButtonTertiaryStyle,
           R.attr.floatingActionButtonSurfaceStyle,
+          R.attr.floatingActionButtonSmallStyle,
+          R.attr.floatingActionButtonSmallPrimaryStyle,
+          R.attr.floatingActionButtonSmallSecondaryStyle,
+          R.attr.floatingActionButtonSmallTertiaryStyle,
+          R.attr.floatingActionButtonSmallSurfaceStyle,
           R.attr.floatingActionButtonLargeStyle,
           R.attr.floatingActionButtonLargePrimaryStyle,
           R.attr.floatingActionButtonLargeSecondaryStyle,
@@ -375,6 +380,7 @@ public class ThemeTest {
           R.attr.materialCardViewOutlinedStyle,
           R.attr.materialCardViewFilledStyle,
           R.attr.materialCardViewElevatedStyle,
+          R.attr.materialSwitchStyle,
           R.attr.radioButtonStyle,
           R.attr.sliderStyle,
           R.attr.snackbarStyle,

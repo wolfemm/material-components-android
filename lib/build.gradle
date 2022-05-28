@@ -24,7 +24,7 @@ dependencies {
 
   testImplementation "androidx.test:core:${testRunnerVersion}"
   testImplementation "androidx.test:runner:${testRunnerVersion}"
-  testImplementation "junit:junit:4.12"
+  testImplementation "junit:junit:4.13.2"
   testImplementation "com.google.truth:truth:${truthVersion}"
   testImplementation "org.mockito:mockito-core:${mockitoCoreVersion}"
   testImplementation "org.robolectric:robolectric:${robolectricVersion}"
@@ -58,6 +58,7 @@ def srcDirs = [
   'com/google/android/material/floatingactionbutton',
   'com/google/android/material/imageview',
   'com/google/android/material/internal',
+  'com/google/android/material/materialswitch',
   'com/google/android/material/math',
   'com/google/android/material/menu',
   'com/google/android/material/motion',
@@ -96,6 +97,7 @@ android {
     srcDirs.forEach {
       main.res.srcDirs += 'java/' + it + '/res'
       main.res.srcDirs += 'java/' + it + '/res-public'
+      test.res.srcDirs += 'javatests/' + it + '/res'
     }
 
     test.java.srcDir 'javatests'
@@ -109,15 +111,6 @@ android {
 
   defaultConfig {
     minSdkVersion 14
-  }
-}
-
-// Add the resource directories to the main sourceSet for all test tasks
-gradle.projectsEvaluated {
-  tasks.withType(Test) { task ->
-    srcDirs.forEach {
-      android.sourceSets.main.res.srcDirs += 'javatests/' + it + '/res'
-    }
   }
 }
 
@@ -216,6 +209,7 @@ task generateJdiffReport(type: Javadoc) {
 }
 
 def R_CLASS_PATH = "build/generated/not_namespaced_r_class_sources/releaseUnitTest/processReleaseUnitTestResources/r/com/google/android/material/R.java"
+Attribute<String> ARTIFACT_TYPE = Attribute.of("artifactType", String.class)
 afterEvaluate {
   [generateJavadocs, generateApiXml].forEach { task ->
     task.dependsOn(':lib:processReleaseUnitTestResources')
@@ -225,6 +219,13 @@ afterEvaluate {
     if (releaseVariant == null) {
       return
     }
+
+    // Add transitive runtime dependencies to classpath
+    task.classpath += releaseVariant.runtimeConfiguration.incoming.artifactView { aView ->
+      aView.attributes.attribute(ARTIFACT_TYPE, "android-classes")
+    }.files
+
+    // Add project and compile dependencies to classpath
     releaseVariant.javaCompileProvider.configure { javaCompileProvider ->
       task.classpath += releaseVariant.getCompileClasspath(null)
       task.classpath += task.project.files(javaCompileProvider.destinationDir)

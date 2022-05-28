@@ -55,6 +55,7 @@ import android.view.ViewOutlineProvider;
 import android.view.ViewParent;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.widget.CompoundButton;
 import androidx.annotation.AnimatorRes;
 import androidx.annotation.BoolRes;
 import androidx.annotation.CallSuper;
@@ -152,6 +153,7 @@ public class Chip extends AppCompatCheckBox
   @Nullable private RippleDrawable ripple;
 
   @Nullable private OnClickListener onCloseIconClickListener;
+  @Nullable private CompoundButton.OnCheckedChangeListener onCheckedChangeListener;
   @Nullable private MaterialCheckable.OnCheckedChangeListener<Chip> onCheckedChangeListenerInternal;
   private boolean deferredCheckedValue;
   private boolean closeIconPressed;
@@ -165,8 +167,6 @@ public class Chip extends AppCompatCheckBox
 
   @Nullable private CharSequence accessibilityClassName;
   private static final String BUTTON_ACCESSIBILITY_CLASS_NAME = "android.widget.Button";
-  private static final String COMPOUND_BUTTON_ACCESSIBILITY_CLASS_NAME =
-      "android.widget.CompoundButton";
   private static final String RADIO_BUTTON_ACCESSIBILITY_CLASS_NAME =
       "android.widget.RadioButton";
   private static final String GENERIC_VIEW_ACCESSIBILITY_CLASS_NAME = "android.view.View";
@@ -252,6 +252,16 @@ public class Chip extends AppCompatCheckBox
       setMinHeight(minTouchTargetSize);
     }
     lastLayoutDirection = ViewCompat.getLayoutDirection(this);
+
+    super.setOnCheckedChangeListener(
+        (buttonView, isChecked) -> {
+          if (onCheckedChangeListenerInternal != null) {
+            onCheckedChangeListenerInternal.onCheckedChanged(Chip.this, isChecked);
+          }
+          if (onCheckedChangeListener != null) {
+            onCheckedChangeListener.onCheckedChanged(buttonView, isChecked);
+          }
+        });
   }
 
   @Override
@@ -708,15 +718,15 @@ public class Chip extends AppCompatCheckBox
       // Defer the setChecked() call until after initialization.
       deferredCheckedValue = checked;
     } else if (chipDrawable.isCheckable()) {
-      boolean wasChecked = isChecked();
       super.setChecked(checked);
-
-      if (wasChecked != checked) {
-        if (onCheckedChangeListenerInternal != null) {
-          onCheckedChangeListenerInternal.onCheckedChanged(this, checked);
-        }
-      }
     }
+  }
+
+  @Override
+  public void setOnCheckedChangeListener(
+      @Nullable CompoundButton.OnCheckedChangeListener listener) {
+    // Do not call super here - the wrapped listener set in the constructor will call the listener.
+    onCheckedChangeListener = listener;
   }
 
   /** Register a callback to be invoked when the close icon is clicked. */
@@ -2335,7 +2345,7 @@ public class Chip extends AppCompatCheckBox
       if (parent instanceof ChipGroup && ((ChipGroup) parent).isSingleSelection()) {
         return RADIO_BUTTON_ACCESSIBILITY_CLASS_NAME;
       } else {
-        return COMPOUND_BUTTON_ACCESSIBILITY_CLASS_NAME;
+        return BUTTON_ACCESSIBILITY_CLASS_NAME;
       }
     } else if (isClickable()) {
       return BUTTON_ACCESSIBILITY_CLASS_NAME;

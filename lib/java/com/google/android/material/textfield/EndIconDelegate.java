@@ -18,12 +18,17 @@ package com.google.android.material.textfield;
 
 import android.content.Context;
 import android.text.Editable;
+import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnFocusChangeListener;
+import android.view.accessibility.AccessibilityEvent;
 import android.widget.EditText;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
+import androidx.core.view.accessibility.AccessibilityManagerCompat.TouchExplorationStateChangeListener;
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import com.google.android.material.internal.CheckableImageButton;
 import com.google.android.material.textfield.TextInputLayout.BoxBackgroundMode;
 
@@ -40,22 +45,65 @@ abstract class EndIconDelegate {
   final Context context;
   final CheckableImageButton endIconView;
 
-  @DrawableRes
-  final int customEndIcon;
-
-  EndIconDelegate(@NonNull EndCompoundLayout endLayout, @DrawableRes int customEndIcon) {
+  EndIconDelegate(@NonNull EndCompoundLayout endLayout) {
     this.textInputLayout = endLayout.textInputLayout;
     this.endLayout = endLayout;
     this.context = endLayout.getContext();
     this.endIconView = endLayout.getEndIconView();
-    this.customEndIcon = customEndIcon;
   }
 
   /** Called when the associated end icon mode is set. */
-  abstract void setUp();
+  void setUp() {}
+  ;
 
   /** Called when the associated end icon mode is unset. */
   void tearDown() {}
+
+  /** Returns the icon resource ID that should be used. */
+  @DrawableRes
+  int getIconDrawableResId() {
+    return 0;
+  }
+
+  /** Returns the string resource ID that should be used as the content description. */
+  @StringRes
+  int getIconContentDescriptionResId() {
+    return 0;
+  }
+
+  /**
+   * Returns true if the end icon should be checkable.
+   *
+   * @see TextInputLayout#setEndIconCheckable(boolean)
+   */
+  boolean isIconCheckable() {
+    return false;
+  }
+
+  /**
+   * Returns true if the end icon should be checked. You will need to override
+   * {@link #isIconCheckable()} to make this method work.
+   */
+  boolean isIconChecked() {
+    return false;
+  }
+
+  /**
+   * Returns true if the end icon should be activable.
+   */
+  boolean isIconActivable() {
+    return false;
+  }
+
+  /**
+   * Returns true if the end icon should be activated. You will need to override
+   * {@link #isIconActivable()} to make this method work.
+   *
+   * @see TextInputLayout#setEndIconActivated(boolean)
+   */
+  boolean isIconActivated() {
+    return false;
+  }
 
   /**
    * Whether the end icon should be tinted with the error color when the {@link TextInputLayout} is
@@ -83,7 +131,7 @@ abstract class EndIconDelegate {
   void onSuffixVisibilityChanged(boolean visible) {}
 
   /**
-   * Overrides this method to provides an {@link OnClickListener} to handle click events of the end
+   * Override this method to provide an {@link OnClickListener} to handle click events of the end
    * icon.
    */
   OnClickListener getOnIconClickListener() {
@@ -91,18 +139,26 @@ abstract class EndIconDelegate {
   }
 
   /**
-   * Overrides this method to provides an {@link OnFocusChangeListener} to handle focus change
-   * events of the edit text.
+   * Override this method to provide an {@link OnFocusChangeListener} to handle focus change events
+   * of the edit text.
    */
   OnFocusChangeListener getOnEditTextFocusChangeListener() {
     return null;
   }
 
   /**
-   * Overrides this method to provides an {@link OnFocusChangeListener} to handle focus change
-   * events of the end icon.
+   * Override this method to provide an {@link OnFocusChangeListener} to handle focus change events
+   * of the end icon.
    */
   OnFocusChangeListener getOnIconViewFocusChangeListener() {
+    return null;
+  }
+
+  /**
+   * Override this method to provide a {@link TouchExplorationStateChangeListener} to handle touch
+   * exploration state changes of the end icon.
+   */
+  TouchExplorationStateChangeListener getTouchExplorationStateChangeListener() {
     return null;
   }
 
@@ -122,4 +178,20 @@ abstract class EndIconDelegate {
    * @see android.text.TextWatcher#afterTextChanged(Editable)
    */
   void afterEditTextChanged(Editable s) {}
+
+  /**
+   * This method will be called when the associated {@link TextInputLayout} is initializing the
+   * accessibility node info.
+   */
+  void onInitializeAccessibilityNodeInfo(View host, @NonNull AccessibilityNodeInfoCompat info) {}
+
+  /**
+   * This method will be called when the associated {@link TextInputLayout} is populating a
+   * accessibility event.
+   */
+  void onPopulateAccessibilityEvent(View host, @NonNull AccessibilityEvent event) {}
+
+  final void refreshIconState() {
+    endLayout.refreshIconState(/* force= */ false);
+  }
 }
