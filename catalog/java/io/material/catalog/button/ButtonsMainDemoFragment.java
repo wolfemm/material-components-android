@@ -19,6 +19,7 @@ package io.material.catalog.button;
 import io.material.catalog.R;
 
 import android.os.Bundle;
+import androidx.appcompat.widget.SwitchCompat;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.view.LayoutInflater;
@@ -28,7 +29,6 @@ import androidx.annotation.LayoutRes;
 import androidx.annotation.Nullable;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.snackbar.Snackbar;
-import com.google.android.material.switchmaterial.SwitchMaterial;
 import io.material.catalog.feature.DemoFragment;
 import io.material.catalog.feature.DemoUtils;
 import java.util.List;
@@ -59,7 +59,8 @@ public class ButtonsMainDemoFragment extends DemoFragment {
           });
     }
 
-    SwitchMaterial enabledSwitch = view.findViewById(R.id.cat_button_enabled_switch);
+    // Using SwitchCompat here to avoid class cast issues in derived demos.
+    SwitchCompat enabledSwitch = view.findViewById(R.id.cat_button_enabled_switch);
     enabledSwitch.setOnCheckedChangeListener(
         (buttonView, isChecked) -> {
           CharSequence updatedText =
@@ -76,6 +77,22 @@ public class ButtonsMainDemoFragment extends DemoFragment {
             button.setFocusable(isChecked);
           }
         });
+
+    ViewGroup iconOnlyButtonsView = view.findViewById(R.id.material_icon_only_buttons_view);
+    // Icon only buttons demo may not be there in derived demos.
+    if (iconOnlyButtonsView != null) {
+      List<MaterialButton> iconButtons =
+          DemoUtils.findViewsWithType(iconOnlyButtonsView, MaterialButton.class);
+      // using SwitchCompat here to avoid class cast issues in derived demos.
+      SwitchCompat toggleableSwitch = view.findViewById(R.id.cat_button_toggleable_icon_buttons);
+      toggleableSwitch.setOnCheckedChangeListener(
+          (buttonView, isCheckable) -> {
+            for (MaterialButton button : iconButtons) {
+              button.setCheckable(isCheckable);
+              button.setChecked(false);
+            }
+          });
+    }
 
     return view;
   }

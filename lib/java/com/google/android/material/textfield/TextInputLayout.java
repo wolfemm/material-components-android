@@ -68,6 +68,7 @@ import androidx.annotation.ColorRes;
 import androidx.annotation.DimenRes;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.IntDef;
+import androidx.annotation.IntRange;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.Px;
@@ -662,7 +663,7 @@ public class TextInputLayout extends LinearLayout {
 
     endLayout = new EndCompoundLayout(this, a);
 
-    setEnabled(a.getBoolean(R.styleable.TextInputLayout_android_enabled, true));
+    final boolean enabled = a.getBoolean(R.styleable.TextInputLayout_android_enabled, true);
 
     a.recycle();
 
@@ -680,6 +681,11 @@ public class TextInputLayout extends LinearLayout {
     inputFrame.addView(endLayout);
 
     addView(inputFrame);
+
+    // TextInputLayout#setEnabled sets the enabled state not only for TextInputLayout itself but
+    // also for child views, so the method is called (and should be called) only after all child
+    // views have been added.
+    setEnabled(enabled);
 
     setHelperTextEnabled(helperTextEnabled);
     setErrorEnabled(errorEnabled);
@@ -2867,9 +2873,6 @@ public class TextInputLayout extends LinearLayout {
   static class SavedState extends AbsSavedState {
     @Nullable CharSequence error;
     boolean isEndIconChecked;
-    @Nullable CharSequence hintText;
-    @Nullable CharSequence helperText;
-    @Nullable CharSequence placeholderText;
 
     SavedState(Parcelable superState) {
       super(superState);
@@ -2879,9 +2882,6 @@ public class TextInputLayout extends LinearLayout {
       super(source, loader);
       error = TextUtils.CHAR_SEQUENCE_CREATOR.createFromParcel(source);
       isEndIconChecked = (source.readInt() == 1);
-      hintText = TextUtils.CHAR_SEQUENCE_CREATOR.createFromParcel(source);
-      helperText = TextUtils.CHAR_SEQUENCE_CREATOR.createFromParcel(source);
-      placeholderText = TextUtils.CHAR_SEQUENCE_CREATOR.createFromParcel(source);
     }
 
     @Override
@@ -2889,9 +2889,6 @@ public class TextInputLayout extends LinearLayout {
       super.writeToParcel(dest, flags);
       TextUtils.writeToParcel(error, dest, flags);
       dest.writeInt(isEndIconChecked ? 1 : 0);
-      TextUtils.writeToParcel(hintText, dest, flags);
-      TextUtils.writeToParcel(helperText, dest, flags);
-      TextUtils.writeToParcel(placeholderText, dest, flags);
     }
 
     @NonNull
@@ -2901,12 +2898,6 @@ public class TextInputLayout extends LinearLayout {
           + Integer.toHexString(System.identityHashCode(this))
           + " error="
           + error
-          + " hint="
-          + hintText
-          + " helperText="
-          + helperText
-          + " placeholderText="
-          + placeholderText
           + "}";
     }
 
@@ -2941,9 +2932,6 @@ public class TextInputLayout extends LinearLayout {
       ss.error = getError();
     }
     ss.isEndIconChecked = endLayout.isEndIconChecked();
-    ss.hintText = getHint();
-    ss.helperText = getHelperText();
-    ss.placeholderText = getPlaceholderText();
     return ss;
   }
 
@@ -2966,9 +2954,6 @@ public class TextInputLayout extends LinearLayout {
             }
           });
     }
-    setHint(ss.hintText);
-    setHelperText(ss.helperText);
-    setPlaceholderText(ss.placeholderText);
     requestLayout();
   }
 
@@ -3159,6 +3144,29 @@ public class TextInputLayout extends LinearLayout {
   public Drawable getStartIconDrawable() {
     return startLayout.getStartIconDrawable();
   }
+
+  /**
+   * Sets the width and height of the start icon.
+   *
+   * @param iconSize new dimension for width and height of the start icon in pixels.
+   * @attr ref android.support.design.button.R.styleable#TextInputLayout_startIconSize
+   * @see #getStartIconMinSize()
+   */
+  public void setStartIconMinSize(@IntRange(from = 0) int iconSize) {
+    startLayout.setStartIconMinSize(iconSize);
+  }
+
+  /**
+   * Returns the size of the start icon.
+   *
+   * @return Returns the size of the start icon in pixels.
+   * @attr ref android.support.design.button.R.styleable#TextInputLayout_startIconSize
+   * @see #setStartIconMinSize(int)
+   */
+  public int getStartIconMinSize() {
+    return startLayout.getStartIconMinSize();
+  }
+
 
   /**
    * Sets the start icon's functionality that is performed when the start icon is clicked. The icon
@@ -3471,6 +3479,28 @@ public class TextInputLayout extends LinearLayout {
   @Nullable
   public Drawable getEndIconDrawable() {
     return endLayout.getEndIconDrawable();
+  }
+
+  /**
+   * Sets the width and height of the end icon.
+   *
+   * @param iconSize new dimension for width and height of the end icon in pixels.
+   * @attr ref android.support.design.button.R.styleable#TextInputLayout_endIconSize
+   * @see #getEndIconMinSize()
+   */
+  public void setEndIconMinSize(@IntRange(from = 0) int iconSize) {
+    endLayout.setEndIconMinSize(iconSize);
+  }
+
+  /**
+   * Returns the minimum size of the end icon.
+   *
+   * @return Returns the size of the end icon in pixels.
+   * @attr ref android.support.design.button.R.styleable#TextInputLayout_endIconSize
+   * @see #setEndIconMinSize(int)
+   */
+  public int getEndIconMinSize() {
+    return endLayout.getEndIconMinSize();
   }
 
   /**

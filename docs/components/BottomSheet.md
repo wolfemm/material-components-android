@@ -198,6 +198,19 @@ specifying any of these to true on the view:
 
 On API 21 and above the modal bottom sheet will be rendered fullscreen (edge to
 edge) if the navigation bar is transparent and `app:enableEdgeToEdge` is true.
+To enable edge-to-edge by default for modal bottom sheets, you can override
+`?attr/bottomSheetDialogTheme` like the below example:
+
+```
+<style name="AppTheme" parent="Theme.Material3.*">
+  ...
+  <item name="bottomSheetDialogTheme">@style/ThemeOverlay.App.BottomSheetDialog</item>
+</style>
+
+<style name="ThemeOverlay.App.BottomSheetDialog" parent="ThemeOverlay.Material3.BottomSheetDialog">
+    <item name="android:navigationBarColor" tools:ignore="NewApi">@android:color/transparent</item>
+</style>
+```
 
 Insets can be added automatically if any of the padding attributes above are set
 to true in the style, either by updating the style passed to the constructor, or
@@ -211,6 +224,19 @@ slides under the status bar, to prevent content from being drawn underneath it.
 
 The contents within a bottom sheet should follow their own accessibility
 guidelines, such as setting content descriptions for images.
+
+To support dragging bottom sheets with accessibility services such as TalkBack,
+Voice Access, Switch Access, etc., we provide a convenient widget
+`BottomSheetDragHandleView` which will automatically receive and handle
+accessibility commands to expand and collapse the attached bottom sheet when
+the accessibility mode is enabled. To use `BottomSheetDragHandleView`, you can
+add it to the top of your bottom sheet content. It will show a customizable
+visual indicator for all users. See the example in the below section for how to
+add a drag handle to your bottom sheet.
+
+**Note:** `BottomSheetDragHandleView` has a default min width and height of 48dp
+to conform to the minimum touch target requirement. So you will need to preserve
+at least 48dp at the top to place a drag handle.
 
 ## Standard bottom sheet
 
@@ -251,10 +277,16 @@ Apply the `BottomSheetBehavior` to a direct child `View` of `CoordinatorLayout`:
 
   <FrameLayout
     android:id="@+id/standard_bottom_sheet"
+    style="@style/Widget.Material3.BottomSheet"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    style="?attr/bottomSheetStyle"
     app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
+
+    <!-- Drag handle for accessibility -->
+    <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+    android:id="@+id/drag_handle"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"/>
 
     <!-- Bottom sheet contents. -->
     <TextView
@@ -398,6 +430,11 @@ Attribute                | Related method(s)                 | Default value
 **Default style (modal)** | `@style/Widget.Material3.BottomSheet.Modal`
 
 Default style theme attribute:`?attr/bottomSheetStyle`
+
+Note: The `?attr/bottomSheetStyle` default style theme attribute is for modal
+bottom sheets only. There is no default style theme attribute for standard
+bottom sheets, because `BottomSheetBehavior`s don't have a designated associated
+`View`.
 
 ### Theme overlays
 

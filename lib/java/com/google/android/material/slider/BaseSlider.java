@@ -1577,6 +1577,22 @@ abstract class BaseSlider<
   }
 
   @Override
+  protected void onVisibilityChanged(@NonNull View changedView, int visibility) {
+    super.onVisibilityChanged(changedView, visibility);
+    // When the visibility is set to VISIBLE, onDraw() is called again which adds or removes labels
+    // according to the setting.
+    if (visibility != VISIBLE) {
+      ViewOverlayImpl contentViewOverlay = ViewUtils.getContentViewOverlay(this);
+      if (contentViewOverlay == null) {
+        return;
+      }
+      for (TooltipDrawable label : labels) {
+        contentViewOverlay.remove(label);
+      }
+    }
+  }
+
+  @Override
   public void setEnabled(boolean enabled) {
     super.setEnabled(enabled);
     // When we're disabled, set the layer type to hardware so we can clear the track out from behind
@@ -2147,8 +2163,9 @@ abstract class BaseSlider<
             @Override
             public void onAnimationEnd(Animator animation) {
               super.onAnimationEnd(animation);
+              ViewOverlayImpl contentViewOverlay = ViewUtils.getContentViewOverlay(BaseSlider.this);
               for (TooltipDrawable label : labels) {
-                ViewUtils.getContentViewOverlay(BaseSlider.this).remove(label);
+                contentViewOverlay.remove(label);
               }
             }
           });
@@ -2358,6 +2375,7 @@ abstract class BaseSlider<
     return super.onKeyDown(keyCode, event);
   }
 
+  @Nullable
   private Boolean onKeyDownNoActiveThumb(int keyCode, @NonNull KeyEvent event) {
     switch (keyCode) {
       case KeyEvent.KEYCODE_TAB:
@@ -2445,6 +2463,7 @@ abstract class BaseSlider<
     return moveFocus(direction);
   }
 
+  @Nullable
   private Float calculateIncrementForKey(int keyCode) {
     // If this is a long press, increase the increment so it will only take around 20 steps.
     // Otherwise choose the smallest valid increment.

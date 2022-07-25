@@ -37,12 +37,12 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.shape.CutCornerTreatment;
 import com.google.android.material.shape.MaterialShapeDrawable;
 import com.google.android.material.shape.ShapeAppearanceModel;
 import com.google.android.material.snackbar.Snackbar;
-import com.google.android.material.switchmaterial.SwitchMaterial;
 import io.material.catalog.feature.DemoFragment;
 import io.material.catalog.feature.DemoUtils;
 import io.material.catalog.feature.OnBackPressedHandler;
@@ -152,10 +152,9 @@ public class BottomAppBarMainDemoFragment extends DemoFragment implements OnBack
     }
 
     centerButton.setOnClickListener(
-        v -> {
-          bar.setFabAlignmentModeAndReplaceMenu(
-              BottomAppBar.FAB_ALIGNMENT_MODE_CENTER, R.menu.demo_primary);
-        });
+        v ->
+            bar.setFabAlignmentModeAndReplaceMenu(
+                BottomAppBar.FAB_ALIGNMENT_MODE_CENTER, R.menu.demo_primary));
     endButton.setOnClickListener(
         v ->
             bar.setFabAlignmentModeAndReplaceMenu(
@@ -176,8 +175,38 @@ public class BottomAppBarMainDemoFragment extends DemoFragment implements OnBack
     slideButton.setOnClickListener(
         v -> bar.setFabAnimationMode(BottomAppBar.FAB_ANIMATION_MODE_SLIDE));
 
+    // Set up FAB anchor mode toggle buttons.
+    MaterialButton embedButton = view.findViewById(R.id.fab_anchor_mode_button_embed);
+    MaterialButton cradleButton = view.findViewById(R.id.fab_anchor_mode_button_cradle);
+
+    if (bar.getFabAnchorMode() == BottomAppBar.FAB_ANCHOR_MODE_EMBED) {
+      embedButton.setChecked(true);
+    } else {
+      cradleButton.setChecked(true);
+    }
+
+    embedButton.setOnClickListener(
+        v -> bar.setFabAnchorMode(BottomAppBar.FAB_ANCHOR_MODE_EMBED));
+    cradleButton.setOnClickListener(
+        v -> bar.setFabAnchorMode(BottomAppBar.FAB_ANCHOR_MODE_CRADLE));
+
+    // Set up menu alignment toggle buttons.
+    MaterialButton menuAlignmentAutoButton = view.findViewById(R.id.menu_alignment_auto);
+    MaterialButton menuAlignmentStartButton = view.findViewById(R.id.menu_alignment_start);
+
+    if (bar.getMenuAlignmentMode() == BottomAppBar.MENU_ALIGNMENT_MODE_AUTO) {
+      menuAlignmentAutoButton.setChecked(true);
+    } else {
+      menuAlignmentStartButton.setChecked(true);
+    }
+
+    menuAlignmentAutoButton.setOnClickListener(
+        v -> bar.setMenuAlignmentMode(BottomAppBar.MENU_ALIGNMENT_MODE_AUTO));
+    menuAlignmentStartButton.setOnClickListener(
+        v -> bar.setMenuAlignmentMode(BottomAppBar.MENU_ALIGNMENT_MODE_START));
+
     // Set up hide on scroll switch.
-    SwitchMaterial barScrollSwitch = view.findViewById(R.id.bar_scroll_switch);
+    MaterialSwitch barScrollSwitch = view.findViewById(R.id.bar_scroll_switch);
     barScrollSwitch.setChecked(bar.getHideOnScroll());
     barScrollSwitch.setOnCheckedChangeListener(
         (buttonView, isChecked) -> bar.setHideOnScroll(isChecked));

@@ -1059,7 +1059,7 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
   }
 
   /**
-   * Sets whether this bottom sheet can hide when it is swiped down.
+   * Sets whether this bottom sheet can hide.
    *
    * @param hideable {@code true} to make this bottom sheet hideable.
    * @attr ref com.google.android.material.R.styleable#BottomSheetBehavior_Layout_behavior_hideable
@@ -1424,6 +1424,9 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
   @Nullable
   @VisibleForTesting
   View findScrollingChild(View view) {
+    if (view.getVisibility() != View.VISIBLE) {
+      return null;
+    }
     if (ViewCompat.isNestedScrollingEnabled(view)) {
       return view;
     }

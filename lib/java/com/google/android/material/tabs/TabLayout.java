@@ -25,8 +25,6 @@ import static androidx.viewpager.widget.ViewPager.SCROLL_STATE_SETTLING;
 import static com.google.android.material.animation.AnimationUtils.FAST_OUT_SLOW_IN_INTERPOLATOR;
 import static com.google.android.material.theme.overlay.MaterialThemeOverlay.wrap;
 
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -36,7 +34,6 @@ import android.content.res.TypedArray;
 import android.database.DataSetObserver;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -94,6 +91,7 @@ import androidx.viewpager.widget.PagerAdapter;
 import androidx.viewpager.widget.ViewPager;
 import com.google.android.material.badge.BadgeDrawable;
 import com.google.android.material.badge.BadgeUtils;
+import com.google.android.material.drawable.DrawableUtils;
 import com.google.android.material.internal.ThemeEnforcement;
 import com.google.android.material.internal.ViewUtils;
 import com.google.android.material.resources.MaterialResources;
@@ -198,6 +196,8 @@ public class TabLayout extends HorizontalScrollView {
   private static final int INVALID_WIDTH = -1;
 
   private static final int ANIMATION_DURATION = 300;
+
+  private static final int SELECTED_INDICATOR_HEIGHT_DEFAULT = -1;
 
   private static final Pools.Pool<Tab> tabPool = new Pools.SynchronizedPool<>(16);
 
@@ -452,7 +452,7 @@ public class TabLayout extends HorizontalScrollView {
   ColorStateList tabTextColors;
   ColorStateList tabIconTint;
   ColorStateList tabRippleColorStateList;
-  @NonNull Drawable tabSelectedIndicator = new GradientDrawable();
+  @NonNull Drawable tabSelectedIndicator;
   private int tabSelectedIndicatorColor = Color.TRANSPARENT;
 
   android.graphics.PorterDuff.Mode tabIconTintMode;
@@ -474,7 +474,7 @@ public class TabLayout extends HorizontalScrollView {
   @Mode int mode;
   boolean inlineLabel;
   boolean tabIndicatorFullWidth;
-  int tabIndicatorHeight = -1;
+  int tabIndicatorHeight = SELECTED_INDICATOR_HEIGHT_DEFAULT;
   @TabIndicatorAnimationMode int tabIndicatorAnimationMode;
   boolean unboundedRipple;
 
@@ -642,6 +642,7 @@ public class TabLayout extends HorizontalScrollView {
    */
   public void setSelectedTabIndicatorColor(@ColorInt int color) {
     this.tabSelectedIndicatorColor = color;
+    DrawableUtils.setTint(tabSelectedIndicator, tabSelectedIndicatorColor);
     updateTabViews(false);
   }
 
@@ -1379,15 +1380,16 @@ public class TabLayout extends HorizontalScrollView {
    * @see #setSelectedTabIndicator(int)
    */
   public void setSelectedTabIndicator(@Nullable Drawable tabSelectedIndicator) {
-    if (this.tabSelectedIndicator != tabSelectedIndicator) {
-      this.tabSelectedIndicator =
-          tabSelectedIndicator != null ? tabSelectedIndicator : new GradientDrawable();
-      int indicatorHeight =
-          tabIndicatorHeight != -1
-              ? tabIndicatorHeight
-              : this.tabSelectedIndicator.getIntrinsicHeight();
-      slidingTabIndicator.setSelectedIndicatorHeight(indicatorHeight);
+    if (tabSelectedIndicator == null) {
+      tabSelectedIndicator = new GradientDrawable();
     }
+    this.tabSelectedIndicator = DrawableCompat.wrap(tabSelectedIndicator).mutate();
+    DrawableUtils.setTint(this.tabSelectedIndicator, tabSelectedIndicatorColor);
+    int indicatorHeight =
+        tabIndicatorHeight == SELECTED_INDICATOR_HEIGHT_DEFAULT
+            ? this.tabSelectedIndicator.getIntrinsicHeight()
+            : tabIndicatorHeight;
+    slidingTabIndicator.setSelectedIndicatorHeight(indicatorHeight);
   }
 
   /**
@@ -3007,10 +3009,6 @@ public class TabLayout extends HorizontalScrollView {
 
   class SlidingTabIndicator extends LinearLayout {
     ValueAnimator indicatorAnimator;
-    int selectedPosition = -1;
-    // selectionOffset is only used when a tab is being slid due to a viewpager swipe.
-    // selectionOffset is always the offset to the right of selectedPosition.
-    float selectionOffset;
 
     private int layoutDirection = -1;
 
@@ -3038,26 +3036,21 @@ public class TabLayout extends HorizontalScrollView {
     /**
      * Set the indicator position based on an offset between two adjacent tabs.
      *
-     * @param position The position from which the offset should be calculated.
-     * @param positionOffset The offset to the right of position where the indicator should be
-     *     drawn. This must be a value between 0.0 and 1.0.
+     * @param position Position index of the first tab (with less index) currently being displayed.
+     *     Tab position+1 will be visible if positionOffset is nonzero.
+     * @param positionOffset Value from [0, 1) indicating the offset from the tab at position.
      */
     void setIndicatorPositionFromTabPosition(int position, float positionOffset) {
       if (indicatorAnimator != null && indicatorAnimator.isRunning()) {
         indicatorAnimator.cancel();
       }
 
-      selectedPosition = position;
-      selectionOffset = positionOffset;
+      // The title view refers to the one indicated when offset is 0.
+      final View firstTitle = getChildAt(position);
+      // The title view refers to the one indicated when offset is 1.
+      final View nextTitle = getChildAt(position + 1);
 
-      final View selectedTitle = getChildAt(selectedPosition);
-      final View nextTitle = getChildAt(selectedPosition + 1);
-
-      tweenIndicatorPosition(selectedTitle, nextTitle, selectionOffset);
-    }
-
-    float getIndicatorPosition() {
-      return selectedPosition + selectionOffset;
+      tweenIndicatorPosition(firstTitle, nextTitle, positionOffset);
     }
 
     @Override
@@ -3144,7 +3137,7 @@ public class TabLayout extends HorizontalScrollView {
         // position of the indicator, since the tab widths are different. We need to modify the
         // animation's updateListener to pick up the new target positions.
         updateOrRecreateIndicatorAnimation(
-            /* recreateAnimation= */ false, selectedPosition, /* duration= */ -1);
+            /* recreateAnimation= */ false, getSelectedTabPosition(), /* duration= */ -1);
       } else {
         // If we've been laid out, update the indicator position
         jumpIndicatorToSelectedPosition();
@@ -3153,7 +3146,7 @@ public class TabLayout extends HorizontalScrollView {
 
     /** Immediately update the indicator position to the currently selected position. */
     private void jumpIndicatorToSelectedPosition() {
-      final View currentView = getChildAt(selectedPosition);
+      final View currentView = getChildAt(getSelectedTabPosition());
       tabIndicatorInterpolator.setIndicatorBoundsForTab(
           TabLayout.this, currentView, tabSelectedIndicator);
     }
@@ -3214,7 +3207,7 @@ public class TabLayout extends HorizontalScrollView {
      */
     private void updateOrRecreateIndicatorAnimation(
         boolean recreateAnimation, final int position, int duration) {
-      final View currentView = getChildAt(selectedPosition);
+      final View currentView = getChildAt(getSelectedTabPosition());
       final View targetView = getChildAt(position);
       if (targetView == null) {
         // If we don't have a view, just update the position now and return
@@ -3239,18 +3232,6 @@ public class TabLayout extends HorizontalScrollView {
         animator.setDuration(duration);
         animator.setFloatValues(0F, 1F);
         animator.addUpdateListener(updateListener);
-        animator.addListener(
-            new AnimatorListenerAdapter() {
-              @Override
-              public void onAnimationStart(Animator animator) {
-                selectedPosition = position;
-              }
-
-              @Override
-              public void onAnimationEnd(Animator animator) {
-                selectedPosition = position;
-              }
-            });
         animator.start();
       } else {
         // Reuse the existing animator. Updating the listener only modifies the target positions.
@@ -3297,27 +3278,7 @@ public class TabLayout extends HorizontalScrollView {
         Rect indicatorBounds = tabSelectedIndicator.getBounds();
         tabSelectedIndicator.setBounds(
             indicatorBounds.left, indicatorTop, indicatorBounds.right, indicatorBottom);
-        Drawable indicator = tabSelectedIndicator;
-
-        if (tabSelectedIndicatorColor != Color.TRANSPARENT) {
-          // If a tint color has been specified using TabLayout's setSelectedTabIndicatorColor, wrap
-          // the drawable and tint it as specified.
-          indicator = DrawableCompat.wrap(indicator);
-          if (VERSION.SDK_INT == VERSION_CODES.LOLLIPOP) {
-            indicator.setColorFilter(tabSelectedIndicatorColor, PorterDuff.Mode.SRC_IN);
-          } else {
-            DrawableCompat.setTint(indicator, tabSelectedIndicatorColor);
-          }
-        } else {
-          // Remove existing tint if setSelectedTabIndicatorColor to Color.Transparent.
-          if (VERSION.SDK_INT == VERSION_CODES.LOLLIPOP) {
-            indicator.setColorFilter(null);
-          } else {
-            DrawableCompat.setTintList(indicator, null);
-          }
-        }
-
-        indicator.draw(canvas);
+        tabSelectedIndicator.draw(canvas);
       }
 
       // Draw the tab item contents (icon and label) on top of the background + indicator layers
