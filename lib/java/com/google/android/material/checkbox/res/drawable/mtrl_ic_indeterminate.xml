@@ -14,9 +14,20 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
 -->
-<selector xmlns:android="http://schemas.android.com/apk/res/android">
-  <!-- Disabled state -->
-  <item android:color="?attr/colorOnSurface" android:alpha="@dimen/material_emphasis_disabled" android:state_enabled="false"/>
-  <!-- Default, Enabled state -->
-  <item android:color="?attr/colorOnContainer"/>
-</selector>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools"
+  android:width="32dp"
+  android:height="32dp"
+  android:viewportWidth="32"
+  android:viewportHeight="32"
+  tools:ignore="NewApi">
+  <group
+    android:name="@string/mtrl_checkbox_button_icon_path_group_name"
+    android:pivotX="16"
+    android:pivotY="16">
+    <path
+      android:name="@string/mtrl_checkbox_button_icon_path_name"
+      android:fillColor="@android:color/white"
+      android:pathData="@string/mtrl_checkbox_button_icon_path_indeterminate"/>
+  </group>
+</vector>

@@ -79,6 +79,12 @@
   <string name="cat_picker_title_default">Default</string>
   <!-- Indicates that a custom title will be used [CHAR LIMIT=25] -->
   <string name="cat_picker_title_custom">Custom</string>
+  <!-- Indicates that a custom title with description will be used [CHAR LIMIT=25] -->
+  <string name="cat_picker_title_with_description">With Description</string>
+  <!-- First part of the title and description for the date picker header [CHAR LIMIT=200] -->
+  <string name="cat_picker_title_description_main">"Select dates\n\nSelect the range of dates that you want to pause for the alarm that is set at "</string>
+  <!-- Second part of the description for the date picker header [CHAR LIMIT=60] -->
+  <string name="cat_picker_title_description_colored">6:30pm on Tues, Wed, Thurs.</string>
 
   <!-- Grouping label for a set of radio buttons that choose the selection [CHAR LIMIT=50] -->
   <string name="cat_picker_selection">Default Selection</string>
@@ -104,6 +110,16 @@
   <string name="cat_picker_input_mode_calendar">Calendar</string>
   <!-- Indicates that the picker will start with text input mode [CHAR LIMIT=25] -->
   <string name="cat_picker_input_mode_text">Text Input</string>
+
+  <!-- Grouping label for a set of radio buttons that choose the day view
+       decorator [CHAR LIMIT=75] -->
+  <string name="cat_picker_day_view_decorator">Day View Decorator</string>
+  <!-- Indicates that the picker will use no day view decorator [CHAR LIMIT=50] -->
+  <string name="cat_picker_day_view_decorator_none">None</string>
+  <!-- Indicates that the picker will use a dots day view decorator [CHAR LIMIT=50] -->
+  <string name="cat_picker_day_view_decorator_dots">Dots</string>
+  <!-- Indicates that the picker will use a dots day view decorator [CHAR LIMIT=50] -->
+  <string name="cat_picker_day_view_decorator_highlights">Highlights</string>
 
   <!-- Grouping label for a set of radio buttons that choose the positive button [CHAR LIMIT=50] -->
   <string name="cat_picker_positive_button">Picker Positive Button</string>

@@ -24,6 +24,7 @@ import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.res.ColorStateList;
+import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.graphics.Rect;
@@ -34,6 +35,7 @@ import android.os.Bundle;
 import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.FragmentTransaction;
 import androidx.appcompat.content.res.AppCompatResources;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -78,6 +80,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
   private static final String OVERRIDE_THEME_RES_ID = "OVERRIDE_THEME_RES_ID";
   private static final String DATE_SELECTOR_KEY = "DATE_SELECTOR_KEY";
   private static final String CALENDAR_CONSTRAINTS_KEY = "CALENDAR_CONSTRAINTS_KEY";
+  private static final String DAY_VIEW_DECORATOR_KEY = "DAY_VIEW_DECORATOR_KEY";
   private static final String TITLE_TEXT_RES_ID_KEY = "TITLE_TEXT_RES_ID_KEY";
   private static final String TITLE_TEXT_KEY = "TITLE_TEXT_KEY";
   private static final String POSITIVE_BUTTON_TEXT_RES_ID_KEY = "POSITIVE_BUTTON_TEXT_RES_ID_KEY";
@@ -138,6 +141,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
   @Nullable private DateSelector<S> dateSelector;
   private PickerFragment<S> pickerFragment;
   @Nullable private CalendarConstraints calendarConstraints;
+  @Nullable private DayViewDecorator dayViewDecorator;
   private MaterialCalendar<S> calendar;
   @StringRes private int titleTextResId;
   private CharSequence titleText;
@@ -148,12 +152,15 @@ public final class MaterialDatePicker<S> extends DialogFragment {
   @StringRes private int negativeButtonTextResId;
   private CharSequence negativeButtonText;
 
+  private TextView headerTitleTextView;
   private TextView headerSelectionText;
   private CheckableImageButton headerToggleButton;
   @Nullable private MaterialShapeDrawable background;
   private Button confirmButton;
 
   private boolean edgeToEdgeEnabled;
+  @Nullable private CharSequence fullTitleText;
+  @Nullable private CharSequence singleLineTitleText;
 
   @NonNull
   static <S> MaterialDatePicker<S> newInstance(@NonNull Builder<S> options) {
@@ -163,6 +170,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
     args.putInt(OVERRIDE_THEME_RES_ID, options.overrideThemeResId);
     args.putParcelable(DATE_SELECTOR_KEY, options.dateSelector);
     args.putParcelable(CALENDAR_CONSTRAINTS_KEY, options.calendarConstraints);
+    args.putParcelable(DAY_VIEW_DECORATOR_KEY, options.dayViewDecorator);
     args.putInt(TITLE_TEXT_RES_ID_KEY, options.titleTextResId);
     args.putCharSequence(TITLE_TEXT_KEY, options.titleText);
     args.putInt(INPUT_MODE_KEY, options.inputMode);
@@ -187,6 +195,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
       constraintsBuilder.setOpenAt(calendar.getCurrentMonth().timeInMillis);
     }
     bundle.putParcelable(CALENDAR_CONSTRAINTS_KEY, constraintsBuilder.build());
+    bundle.putParcelable(DAY_VIEW_DECORATOR_KEY, dayViewDecorator);
     bundle.putInt(TITLE_TEXT_RES_ID_KEY, titleTextResId);
     bundle.putCharSequence(TITLE_TEXT_KEY, titleText);
     bundle.putInt(POSITIVE_BUTTON_TEXT_RES_ID_KEY, positiveButtonTextResId);
@@ -203,6 +212,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
     overrideThemeResId = activeBundle.getInt(OVERRIDE_THEME_RES_ID);
     dateSelector = activeBundle.getParcelable(DATE_SELECTOR_KEY);
     calendarConstraints = activeBundle.getParcelable(CALENDAR_CONSTRAINTS_KEY);
+    dayViewDecorator = activeBundle.getParcelable(DAY_VIEW_DECORATOR_KEY);
     titleTextResId = activeBundle.getInt(TITLE_TEXT_RES_ID_KEY);
     titleText = activeBundle.getCharSequence(TITLE_TEXT_KEY);
     inputMode = activeBundle.getInt(INPUT_MODE_KEY);
@@ -210,6 +220,10 @@ public final class MaterialDatePicker<S> extends DialogFragment {
     positiveButtonText = activeBundle.getCharSequence(POSITIVE_BUTTON_TEXT_KEY);
     negativeButtonTextResId = activeBundle.getInt(NEGATIVE_BUTTON_TEXT_RES_ID_KEY);
     negativeButtonText = activeBundle.getCharSequence(NEGATIVE_BUTTON_TEXT_KEY);
+
+    fullTitleText =
+        titleText != null ? titleText : requireContext().getResources().getText(titleTextResId);
+    singleLineTitleText = getFirstLineBySeparator(fullTitleText);
   }
 
   private int getThemeResId(Context context) {
@@ -250,6 +264,10 @@ public final class MaterialDatePicker<S> extends DialogFragment {
     View root = layoutInflater.inflate(layout, viewGroup);
     Context context = root.getContext();
 
+    if (dayViewDecorator != null) {
+      dayViewDecorator.initialize(context);
+    }
+
     if (fullscreen) {
       View frame = root.findViewById(R.id.mtrl_calendar_frame);
       frame.setLayoutParams(
@@ -264,12 +282,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
     ViewCompat.setAccessibilityLiveRegion(
         headerSelectionText, ViewCompat.ACCESSIBILITY_LIVE_REGION_POLITE);
     headerToggleButton = root.findViewById(R.id.mtrl_picker_header_toggle);
-    TextView titleTextView = root.findViewById(R.id.mtrl_picker_title_text);
-    if (titleText != null) {
-      titleTextView.setText(titleText);
-    } else {
-      titleTextView.setText(titleTextResId);
-    }
+    headerTitleTextView = root.findViewById(R.id.mtrl_picker_title_text);
     initHeaderToggle(context);
 
     confirmButton = root.findViewById(R.id.confirm_button);
@@ -425,6 +438,12 @@ public final class MaterialDatePicker<S> extends DialogFragment {
     edgeToEdgeEnabled = true;
   }
 
+  private void updateTitle(boolean textInputMode) {
+    // Set up title text forcing single line for landscape text input mode due to space constraints.
+    headerTitleTextView.setText(
+        textInputMode && isLandscape() ? singleLineTitleText : fullTitleText);
+  }
+
   private void updateHeader() {
     String headerText = getHeaderText();
     headerSelectionText.setContentDescription(
@@ -434,12 +453,16 @@ public final class MaterialDatePicker<S> extends DialogFragment {
 
   private void startPickerFragment() {
     int themeResId = getThemeResId(requireContext());
-    calendar = MaterialCalendar.newInstance(getDateSelector(), themeResId, calendarConstraints);
+    calendar =
+        MaterialCalendar.newInstance(
+            getDateSelector(), themeResId, calendarConstraints, dayViewDecorator);
+    boolean textInputMode = headerToggleButton.isChecked();
     pickerFragment =
-        headerToggleButton.isChecked()
+        textInputMode
             ? MaterialTextInputPicker.newInstance(
                 getDateSelector(), themeResId, calendarConstraints)
             : calendar;
+    updateTitle(textInputMode);
     updateHeader();
 
     FragmentTransaction fragmentTransaction = getChildFragmentManager().beginTransaction();
@@ -510,6 +533,19 @@ public final class MaterialDatePicker<S> extends DialogFragment {
         new int[] {},
         AppCompatResources.getDrawable(context, R.drawable.material_ic_edit_black_24dp));
     return toggleDrawable;
+  }
+
+  @Nullable
+  private static CharSequence getFirstLineBySeparator(@Nullable CharSequence charSequence) {
+    if (charSequence != null) {
+      String[] lines = TextUtils.split(String.valueOf(charSequence), "\n");
+      return lines.length > 1 ? lines[0] : charSequence;
+    }
+    return null;
+  }
+
+  private boolean isLandscape() {
+    return getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
   }
 
   static boolean isFullscreen(@NonNull Context context) {
@@ -634,6 +670,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
     int overrideThemeResId = 0;
 
     CalendarConstraints calendarConstraints;
+    @Nullable DayViewDecorator dayViewDecorator;
     int titleTextResId = 0;
     CharSequence titleText = null;
     int positiveButtonTextResId = 0;
@@ -693,6 +730,13 @@ public final class MaterialDatePicker<S> extends DialogFragment {
     @NonNull
     public Builder<S> setCalendarConstraints(CalendarConstraints bounds) {
       this.calendarConstraints = bounds;
+      return this;
+    }
+
+    /** Sets the {@link DayViewDecorator}. */
+    @NonNull
+    public Builder<S> setDayViewDecorator(@Nullable DayViewDecorator dayViewDecorator) {
+      this.dayViewDecorator = dayViewDecorator;
       return this;
     }
 

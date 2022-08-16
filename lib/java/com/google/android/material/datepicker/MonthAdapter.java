@@ -18,6 +18,8 @@ package com.google.android.material.datepicker;
 import com.google.android.material.R;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
+import android.graphics.drawable.Drawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -48,6 +50,8 @@ class MonthAdapter extends BaseAdapter {
           + UtcDates.getUtcCalendar().getMaximum(Calendar.DAY_OF_WEEK)
           - 1;
 
+  private static final int NO_DAY_NUMBER = -1;
+
   final Month month;
   /**
    * The {@link DateSelector} dictating the draw behavior of {@link #getView(int, View, ViewGroup)}.
@@ -59,10 +63,17 @@ class MonthAdapter extends BaseAdapter {
   CalendarStyle calendarStyle;
   final CalendarConstraints calendarConstraints;
 
-  MonthAdapter(Month month, DateSelector<?> dateSelector, CalendarConstraints calendarConstraints) {
+  @Nullable final DayViewDecorator dayViewDecorator;
+
+  MonthAdapter(
+      Month month,
+      DateSelector<?> dateSelector,
+      CalendarConstraints calendarConstraints,
+      @Nullable DayViewDecorator dayViewDecorator) {
     this.month = month;
     this.dateSelector = dateSelector;
     this.calendarConstraints = calendarConstraints;
+    this.dayViewDecorator = dayViewDecorator;
     this.previouslySelectedDates = dateSelector.getSelectedDays();
   }
 
@@ -110,37 +121,38 @@ class MonthAdapter extends BaseAdapter {
   @Override
   public TextView getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
     initializeStyles(parent.getContext());
-    TextView day = (TextView) convertView;
+    TextView dayTextView = (TextView) convertView;
     if (convertView == null) {
       LayoutInflater layoutInflater = LayoutInflater.from(parent.getContext());
-      day = (TextView) layoutInflater.inflate(R.layout.mtrl_calendar_day, parent, false);
+      dayTextView = (TextView) layoutInflater.inflate(R.layout.mtrl_calendar_day, parent, false);
     }
     int offsetPosition = position - firstPositionInMonth();
+    int dayNumber = NO_DAY_NUMBER;
     if (offsetPosition < 0 || offsetPosition >= month.daysInMonth) {
-      day.setVisibility(View.GONE);
-      day.setEnabled(false);
+      dayTextView.setVisibility(View.GONE);
+      dayTextView.setEnabled(false);
     } else {
-      int dayNumber = offsetPosition + 1;
+      dayNumber = offsetPosition + 1;
       // The tag and text uniquely identify the view within the MaterialCalendar for testing
-      day.setTag(month);
-      Locale locale = day.getResources().getConfiguration().locale;
-      day.setText(String.format(locale, "%d", dayNumber));
+      dayTextView.setTag(month);
+      Locale locale = dayTextView.getResources().getConfiguration().locale;
+      dayTextView.setText(String.format(locale, "%d", dayNumber));
       long dayInMillis = month.getDay(dayNumber);
       if (month.year == Month.current().year) {
-        day.setContentDescription(DateStrings.getMonthDayOfWeekDay(dayInMillis));
+        dayTextView.setContentDescription(DateStrings.getMonthDayOfWeekDay(dayInMillis));
       } else {
-        day.setContentDescription(DateStrings.getYearMonthDayOfWeekDay(dayInMillis));
+        dayTextView.setContentDescription(DateStrings.getYearMonthDayOfWeekDay(dayInMillis));
       }
-      day.setVisibility(View.VISIBLE);
-      day.setEnabled(true);
+      dayTextView.setVisibility(View.VISIBLE);
+      dayTextView.setEnabled(true);
     }
 
     Long date = getItem(position);
     if (date == null) {
-      return day;
+      return dayTextView;
     }
-    updateSelectedState(day, date);
-    return day;
+    updateSelectedState(dayTextView, date, dayNumber);
+    return dayTextView;
   }
 
   public void updateSelectedStates(MaterialCalendarGridView monthGrid) {
@@ -167,18 +179,22 @@ class MonthAdapter extends BaseAdapter {
           (TextView)
               monthGrid.getChildAt(
                   monthGrid.getAdapter().dayToPosition(day) - monthGrid.getFirstVisiblePosition()),
-          date);
+          date,
+          day);
     }
   }
 
-  private void updateSelectedState(@Nullable TextView day, long date) {
-    if (day == null) {
+  private void updateSelectedState(@Nullable TextView dayTextView, long date, int dayNumber) {
+    if (dayTextView == null) {
       return;
     }
     final CalendarItemStyle style;
-    if (calendarConstraints.getDateValidator().isValid(date)) {
-      day.setEnabled(true);
-      if (isSelected(date)) {
+    boolean valid = calendarConstraints.getDateValidator().isValid(date);
+    boolean selected = false;
+    if (valid) {
+      dayTextView.setEnabled(true);
+      selected = isSelected(date);
+      if (selected) {
         style = calendarStyle.selectedDay;
       } else if (UtcDates.getTodayCalendar().getTimeInMillis() == date) {
         style = calendarStyle.todayDay;
@@ -186,10 +202,34 @@ class MonthAdapter extends BaseAdapter {
         style = calendarStyle.day;
       }
     } else {
-      day.setEnabled(false);
+      dayTextView.setEnabled(false);
       style = calendarStyle.invalidDay;
     }
-    style.styleItem(day);
+
+    if (dayViewDecorator != null && dayNumber != NO_DAY_NUMBER) {
+      Context context = dayTextView.getContext();
+      int year = month.year;
+      int month = this.month.month;
+
+      ColorStateList backgroundColorOverride =
+          dayViewDecorator.getBackgroundColor(context, year, month, dayNumber, valid, selected);
+      style.styleItem(dayTextView, backgroundColorOverride);
+
+      Drawable drawableLeft =
+          dayViewDecorator.getCompoundDrawableLeft(
+              context, year, month, dayNumber, valid, selected);
+      Drawable drawableTop =
+          dayViewDecorator.getCompoundDrawableTop(context, year, month, dayNumber, valid, selected);
+      Drawable drawableRight =
+          dayViewDecorator.getCompoundDrawableRight(
+              context, year, month, dayNumber, valid, selected);
+      Drawable drawableBottom =
+          dayViewDecorator.getCompoundDrawableBottom(
+              context, year, month, dayNumber, valid, selected);
+      dayTextView.setCompoundDrawables(drawableLeft, drawableTop, drawableRight, drawableBottom);
+    } else {
+      style.styleItem(dayTextView);
+    }
   }
 
   private boolean isSelected(long date) {

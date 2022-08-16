@@ -69,6 +69,7 @@ public final class MaterialCalendar<S> extends PickerFragment<S> {
   private static final String THEME_RES_ID_KEY = "THEME_RES_ID_KEY";
   private static final String GRID_SELECTOR_KEY = "GRID_SELECTOR_KEY";
   private static final String CALENDAR_CONSTRAINTS_KEY = "CALENDAR_CONSTRAINTS_KEY";
+  private static final String DAY_VIEW_DECORATOR_KEY = "DAY_VIEW_DECORATOR_KEY";
   private static final String CURRENT_MONTH_KEY = "CURRENT_MONTH_KEY";
   private static final int SMOOTH_SCROLL_MAX = 3;
 
@@ -83,11 +84,14 @@ public final class MaterialCalendar<S> extends PickerFragment<S> {
   @StyleRes private int themeResId;
   @Nullable private DateSelector<S> dateSelector;
   @Nullable private CalendarConstraints calendarConstraints;
+  @Nullable private DayViewDecorator dayViewDecorator;
   @Nullable private Month current;
   private CalendarSelector calendarSelector;
   private CalendarStyle calendarStyle;
   private RecyclerView yearSelector;
   private RecyclerView recyclerView;
+  private View monthPrev;
+  private View monthNext;
   private View yearFrame;
   private View dayFrame;
 
@@ -96,11 +100,21 @@ public final class MaterialCalendar<S> extends PickerFragment<S> {
       @NonNull DateSelector<T> dateSelector,
       @StyleRes int themeResId,
       @NonNull CalendarConstraints calendarConstraints) {
+    return newInstance(dateSelector, themeResId, calendarConstraints, null);
+  }
+
+  @NonNull
+  public static <T> MaterialCalendar<T> newInstance(
+      @NonNull DateSelector<T> dateSelector,
+      @StyleRes int themeResId,
+      @NonNull CalendarConstraints calendarConstraints,
+      @Nullable DayViewDecorator dayViewDecorator) {
     MaterialCalendar<T> materialCalendar = new MaterialCalendar<>();
     Bundle args = new Bundle();
     args.putInt(THEME_RES_ID_KEY, themeResId);
     args.putParcelable(GRID_SELECTOR_KEY, dateSelector);
     args.putParcelable(CALENDAR_CONSTRAINTS_KEY, calendarConstraints);
+    args.putParcelable(DAY_VIEW_DECORATOR_KEY, dayViewDecorator);
     args.putParcelable(CURRENT_MONTH_KEY, calendarConstraints.getOpenAt());
     materialCalendar.setArguments(args);
     return materialCalendar;
@@ -112,6 +126,7 @@ public final class MaterialCalendar<S> extends PickerFragment<S> {
     bundle.putInt(THEME_RES_ID_KEY, themeResId);
     bundle.putParcelable(GRID_SELECTOR_KEY, dateSelector);
     bundle.putParcelable(CALENDAR_CONSTRAINTS_KEY, calendarConstraints);
+    bundle.putParcelable(DAY_VIEW_DECORATOR_KEY, dayViewDecorator);
     bundle.putParcelable(CURRENT_MONTH_KEY, current);
   }
 
@@ -122,6 +137,7 @@ public final class MaterialCalendar<S> extends PickerFragment<S> {
     themeResId = activeBundle.getInt(THEME_RES_ID_KEY);
     dateSelector = activeBundle.getParcelable(GRID_SELECTOR_KEY);
     calendarConstraints = activeBundle.getParcelable(CALENDAR_CONSTRAINTS_KEY);
+    dayViewDecorator = activeBundle.getParcelable(DAY_VIEW_DECORATOR_KEY);
     current = activeBundle.getParcelable(CURRENT_MONTH_KEY);
   }
 
@@ -190,6 +206,7 @@ public final class MaterialCalendar<S> extends PickerFragment<S> {
             themedContext,
             dateSelector,
             calendarConstraints,
+            dayViewDecorator,
             new OnDayClickListener() {
 
               @Override
@@ -348,9 +365,13 @@ public final class MaterialCalendar<S> extends PickerFragment<S> {
               ((YearGridAdapter) yearSelector.getAdapter()).getPositionForYear(current.year));
       yearFrame.setVisibility(View.VISIBLE);
       dayFrame.setVisibility(View.GONE);
+      monthPrev.setVisibility(View.GONE);
+      monthNext.setVisibility(View.GONE);
     } else if (selector == CalendarSelector.DAY) {
       yearFrame.setVisibility(View.GONE);
       dayFrame.setVisibility(View.VISIBLE);
+      monthPrev.setVisibility(View.VISIBLE);
+      monthNext.setVisibility(View.VISIBLE);
       // When visibility is toggled, the RecyclerView default opens to its lowest available id.
       // This id is always one month earlier than current, so we force it to current.
       setCurrentMonth(current);
@@ -384,9 +405,9 @@ public final class MaterialCalendar<S> extends PickerFragment<S> {
           }
         });
 
-    final MaterialButton monthPrev = root.findViewById(R.id.month_navigation_previous);
+    monthPrev = root.findViewById(R.id.month_navigation_previous);
     monthPrev.setTag(NAVIGATION_PREV_TAG);
-    final MaterialButton monthNext = root.findViewById(R.id.month_navigation_next);
+    monthNext = root.findViewById(R.id.month_navigation_next);
     monthNext.setTag(NAVIGATION_NEXT_TAG);
 
     yearFrame = root.findViewById(R.id.mtrl_calendar_year_selector_frame);
