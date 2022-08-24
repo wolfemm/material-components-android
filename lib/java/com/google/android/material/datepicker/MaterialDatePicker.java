@@ -60,6 +60,7 @@ import com.google.android.material.internal.EdgeToEdgeUtils;
 import com.google.android.material.internal.ViewUtils;
 import com.google.android.material.resources.MaterialAttributes;
 import com.google.android.material.shape.MaterialShapeDrawable;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.LinkedHashSet;
@@ -714,6 +715,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
     }
 
     @NonNull
+    @CanIgnoreReturnValue
     public Builder<S> setSelection(S selection) {
       this.selection = selection;
       return this;
@@ -721,6 +723,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
 
     /** Sets the theme controlling fullscreen mode as well as other styles. */
     @NonNull
+    @CanIgnoreReturnValue
     public Builder<S> setTheme(@StyleRes int themeResId) {
       this.overrideThemeResId = themeResId;
       return this;
@@ -728,6 +731,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
 
     /** Sets the first, last, and starting month. */
     @NonNull
+    @CanIgnoreReturnValue
     public Builder<S> setCalendarConstraints(CalendarConstraints bounds) {
       this.calendarConstraints = bounds;
       return this;
@@ -735,6 +739,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
 
     /** Sets the {@link DayViewDecorator}. */
     @NonNull
+    @CanIgnoreReturnValue
     public Builder<S> setDayViewDecorator(@Nullable DayViewDecorator dayViewDecorator) {
       this.dayViewDecorator = dayViewDecorator;
       return this;
@@ -745,6 +750,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
      * based upon the type of selection.
      */
     @NonNull
+    @CanIgnoreReturnValue
     public Builder<S> setTitleText(@StringRes int titleTextResId) {
       this.titleTextResId = titleTextResId;
       this.titleText = null;
@@ -756,6 +762,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
      * default title based upon the type of selection.
      */
     @NonNull
+    @CanIgnoreReturnValue
     public Builder<S> setTitleText(@Nullable CharSequence charSequence) {
       this.titleText = charSequence;
       this.titleTextResId = 0;
@@ -768,6 +775,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
      * @param textId resource id to be used as text in the positive button
      */
     @NonNull
+    @CanIgnoreReturnValue
     public Builder<S> setPositiveButtonText(@StringRes int textId) {
       this.positiveButtonTextResId = textId;
       this.positiveButtonText = null;
@@ -780,6 +788,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
      * @param text text used in the positive button
      */
     @NonNull
+    @CanIgnoreReturnValue
     public Builder<S> setPositiveButtonText(@Nullable CharSequence text) {
       this.positiveButtonText = text;
       this.positiveButtonTextResId = 0;
@@ -792,6 +801,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
      * @param textId resource id to be used as text in the negative button
      */
     @NonNull
+    @CanIgnoreReturnValue
     public Builder<S> setNegativeButtonText(@StringRes int textId) {
       this.negativeButtonTextResId = textId;
       this.negativeButtonText = null;
@@ -804,6 +814,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
      * @param text text used in the negative button
      */
     @NonNull
+    @CanIgnoreReturnValue
     public Builder<S> setNegativeButtonText(@Nullable CharSequence text) {
       this.negativeButtonText = text;
       this.negativeButtonTextResId = 0;
@@ -812,6 +823,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
 
     /** Sets the input mode to start with. */
     @NonNull
+    @CanIgnoreReturnValue
     public Builder<S> setInputMode(@InputMode int inputMode) {
       this.inputMode = inputMode;
       return this;
