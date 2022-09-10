@@ -34,6 +34,7 @@ import static java.util.Collections.min;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
+import android.animation.TimeInterpolator;
 import android.animation.ValueAnimator;
 import android.animation.ValueAnimator.AnimatorUpdateListener;
 import android.content.Context;
@@ -88,6 +89,7 @@ import com.google.android.material.internal.DescendantOffsetUtils;
 import com.google.android.material.internal.ThemeEnforcement;
 import com.google.android.material.internal.ViewOverlayImpl;
 import com.google.android.material.internal.ViewUtils;
+import com.google.android.material.motion.MotionUtils;
 import com.google.android.material.resources.MaterialResources;
 import com.google.android.material.shape.CornerFamily;
 import com.google.android.material.shape.MaterialShapeDrawable;
@@ -231,8 +233,15 @@ abstract class BaseSlider<
   static final int UNIT_VALUE = 1;
   static final int UNIT_PX = 0;
 
-  private static final long LABEL_ANIMATION_ENTER_DURATION = 83L;
-  private static final long LABEL_ANIMATION_EXIT_DURATION = 117L;
+  private static final int DEFAULT_LABEL_ANIMATION_ENTER_DURATION = 83;
+  private static final int DEFAULT_LABEL_ANIMATION_EXIT_DURATION = 117;
+  private static final int LABEL_ANIMATION_ENTER_DURATION_ATTR = R.attr.motionDurationLong2;
+  private static final int LABEL_ANIMATION_EXIT_DURATION_ATTR = R.attr.motionDurationMedium1;
+  private static final int LABEL_ANIMATION_ENTER_EASING_ATTR =
+      R.attr.motionEasingEmphasizedInterpolator;
+  private static final int LABEL_ANIMATION_EXIT_EASING_ATTR =
+      R.attr.motionEasingEmphasizedAccelerateInterpolator;
+
   @Dimension
   private static final int MIN_TOUCH_TARGET_DP = 48;
 
@@ -246,11 +255,7 @@ abstract class BaseSlider<
   private final AccessibilityManager accessibilityManager;
   private AccessibilityEventSender accessibilityEventSender;
 
-  private interface TooltipDrawableFactory {
-    TooltipDrawable createTooltipDrawable();
-  }
-
-  @NonNull private final TooltipDrawableFactory labelMaker;
+  private int labelStyle;
   @NonNull private final List<TooltipDrawable> labels = new ArrayList<>();
   @NonNull private final List<L> changeListeners = new ArrayList<>();
   @NonNull private final List<T> touchListeners = new ArrayList<>();
@@ -371,22 +376,6 @@ abstract class BaseSlider<
     activeTicksPaint.setStrokeCap(Cap.ROUND);
 
     loadResources(context.getResources());
-
-    // Because there's currently no way to copy the TooltipDrawable we use this to make more if more
-    // thumbs are added.
-    labelMaker =
-        new TooltipDrawableFactory() {
-          @Override
-          public TooltipDrawable createTooltipDrawable() {
-            final TypedArray a =
-                ThemeEnforcement.obtainStyledAttributes(
-                    getContext(), attrs, R.styleable.Slider, defStyleAttr, DEF_STYLE_RES);
-            TooltipDrawable d = parseLabelDrawable(getContext(), a);
-            a.recycle();
-            return d;
-          }
-        };
-
     processAttributes(context, attrs, defStyleAttr);
 
     setFocusable(true);
@@ -421,6 +410,10 @@ abstract class BaseSlider<
     TypedArray a =
         ThemeEnforcement.obtainStyledAttributes(
             context, attrs, R.styleable.Slider, defStyleAttr, DEF_STYLE_RES);
+
+    labelStyle = a.getResourceId(
+        R.styleable.Slider_labelStyle, R.style.Widget_MaterialComponents_Tooltip);
+
     valueFrom = a.getFloat(R.styleable.Slider_android_valueFrom, 0.0f);
     valueTo = a.getFloat(R.styleable.Slider_android_valueTo, 1.0f);
     setValues(valueFrom);
@@ -507,16 +500,6 @@ abstract class BaseSlider<
     }
 
     a.recycle();
-  }
-
-  @NonNull
-  private static TooltipDrawable parseLabelDrawable(
-      @NonNull Context context, @NonNull TypedArray a) {
-    return TooltipDrawable.createFromAttributes(
-        context,
-        null,
-        0,
-        a.getResourceId(R.styleable.Slider_labelStyle, R.style.Widget_MaterialComponents_Tooltip));
   }
 
   private boolean maybeIncreaseTrackSidePadding() {
@@ -773,7 +756,10 @@ abstract class BaseSlider<
 
     // If there's not enough labels, add more.
     while (labels.size() < values.size()) {
-      TooltipDrawable tooltipDrawable = labelMaker.createTooltipDrawable();
+      // Because there's currently no way to copy the TooltipDrawable we use this to make more
+      // if more thumbs are added.
+      TooltipDrawable tooltipDrawable =
+          TooltipDrawable.createFromAttributes(getContext(), null, 0, labelStyle);
       labels.add(tooltipDrawable);
       if (ViewCompat.isAttachedToWindow(this)) {
         attachLabelToContentView(tooltipDrawable);
@@ -1735,14 +1721,13 @@ abstract class BaseSlider<
 
     maybeDrawTicks(canvas);
 
-    if ((thumbIsPressed || isFocused() || shouldAlwaysShowLabel()) && isEnabled()) {
-      maybeDrawHalo(canvas, trackWidth, yCenter);
-      // Draw labels if there is an active thumb or the labels are always visible.
-      if (activeThumbIdx != -1 || shouldAlwaysShowLabel()) {
-        ensureLabelsAdded();
-      } else {
-        ensureLabelsRemoved();
-      }
+    if ((thumbIsPressed || isFocused()) && isEnabled()) {
+      maybeDrawCompatHalo(canvas, trackWidth, yCenter);
+    }
+
+    // Draw labels if there is an active thumb or the labels are always visible.
+    if ((activeThumbIdx != -1 || shouldAlwaysShowLabel()) && isEnabled()) {
+      ensureLabelsAdded();
     } else {
       ensureLabelsRemoved();
     }
@@ -1855,7 +1840,7 @@ abstract class BaseSlider<
     canvas.restore();
   }
 
-  private void maybeDrawHalo(@NonNull Canvas canvas, int width, int top) {
+  private void maybeDrawCompatHalo(@NonNull Canvas canvas, int width, int top) {
     // Only draw the halo for devices that aren't using the ripple.
     if (shouldDrawCompatHalo()) {
       int centerX = (int) (trackSidePadding + normalizeValue(values.get(focusedThumbIdx)) * width);
@@ -2145,11 +2130,21 @@ abstract class BaseSlider<
             enter ? labelsOutAnimator : labelsInAnimator, startFraction);
     float endFraction = enter ? 1F : 0F;
     ValueAnimator animator = ValueAnimator.ofFloat(startFraction, endFraction);
-    animator.setDuration(enter ? LABEL_ANIMATION_ENTER_DURATION : LABEL_ANIMATION_EXIT_DURATION);
-    animator.setInterpolator(
-        enter
-            ? AnimationUtils.DECELERATE_INTERPOLATOR
-            : AnimationUtils.FAST_OUT_LINEAR_IN_INTERPOLATOR);
+    int duration;
+    TimeInterpolator interpolator;
+    if (enter) {
+      duration = MotionUtils.resolveThemeDuration(getContext(),
+          LABEL_ANIMATION_ENTER_DURATION_ATTR, DEFAULT_LABEL_ANIMATION_ENTER_DURATION);
+      interpolator = MotionUtils.resolveThemeInterpolator(getContext(),
+          LABEL_ANIMATION_ENTER_EASING_ATTR, AnimationUtils.DECELERATE_INTERPOLATOR);
+    } else {
+      duration = MotionUtils.resolveThemeDuration(getContext(),
+          LABEL_ANIMATION_EXIT_DURATION_ATTR, DEFAULT_LABEL_ANIMATION_EXIT_DURATION);
+      interpolator = MotionUtils.resolveThemeInterpolator(getContext(),
+          LABEL_ANIMATION_EXIT_EASING_ATTR, AnimationUtils.FAST_OUT_LINEAR_IN_INTERPOLATOR);
+    }
+    animator.setDuration(duration);
+    animator.setInterpolator(interpolator);
     animator.addUpdateListener(
         new AnimatorUpdateListener() {
           @Override
