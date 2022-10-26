@@ -15,6 +15,9 @@
  */
 package com.google.android.material.datepicker;
 
+import com.google.android.material.R;
+
+import android.content.Context;
 import android.icu.text.DateFormat;
 import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
@@ -100,6 +103,19 @@ class DateStrings {
     return UtcDates.getFullFormat(locale).format(new Date(timeInMillis));
   }
 
+  /**
+   * Does not show year if date is within current year.
+   *
+   * @param timeInMillis milliseconds since UTC epoch.
+   * @return Formatted date string.
+   */
+  static String getOptionalYearMonthDayOfWeekDay(long timeInMillis) {
+    if (isDateWithinCurrentYear(timeInMillis)) {
+      return getMonthDayOfWeekDay(timeInMillis);
+    }
+    return getYearMonthDayOfWeekDay(timeInMillis);
+  }
+
   static String getDateString(long timeInMillis) {
     return getDateString(timeInMillis, null);
   }
@@ -116,17 +132,20 @@ class DateStrings {
    * @return Formatted date string.
    */
   static String getDateString(long timeInMillis, @Nullable SimpleDateFormat userDefinedDateFormat) {
-    Calendar currentCalendar = UtcDates.getTodayCalendar();
-    Calendar calendarDate = UtcDates.getUtcCalendar();
-    calendarDate.setTimeInMillis(timeInMillis);
-
     if (userDefinedDateFormat != null) {
       Date date = new Date(timeInMillis);
       return userDefinedDateFormat.format(date);
-    } else if (currentCalendar.get(Calendar.YEAR) == calendarDate.get(Calendar.YEAR)) {
+    } else if (isDateWithinCurrentYear(timeInMillis)) {
       return getMonthDay(timeInMillis);
     }
     return getYearMonthDay(timeInMillis);
+  }
+
+  private static boolean isDateWithinCurrentYear(long timeInMillis) {
+    Calendar currentCalendar = UtcDates.getTodayCalendar();
+    Calendar calendarDate = UtcDates.getUtcCalendar();
+    calendarDate.setTimeInMillis(timeInMillis);
+    return currentCalendar.get(Calendar.YEAR) == calendarDate.get(Calendar.YEAR);
   }
 
   static Pair<String, String> getDateRangeString(@Nullable Long start, @Nullable Long end) {
@@ -181,5 +200,53 @@ class DateStrings {
     }
     return Pair.create(
         getYearMonthDay(start, Locale.getDefault()), getYearMonthDay(end, Locale.getDefault()));
+  }
+
+  /**
+   * Returns the day content description.
+   *
+   * @param context the {@link Context}
+   * @param dayInMillis UTC milliseconds representing the first moment of the day in local timezone
+   * @param isToday boolean representing if the day is today
+   * @param isStartOfRange boolean representing if the day is the start of a range
+   * @param isEndOfRange boolean representing if the day is the end of a range
+   * @return Day content description string
+   */
+  static String getDayContentDescription(
+      Context context,
+      long dayInMillis,
+      boolean isToday,
+      boolean isStartOfRange,
+      boolean isEndOfRange) {
+    String dayContentDescription = getOptionalYearMonthDayOfWeekDay(dayInMillis);
+    if (isToday) {
+      dayContentDescription =
+          String.format(
+              context.getString(R.string.mtrl_picker_today_description), dayContentDescription);
+    }
+    if (isStartOfRange) {
+      return String.format(
+          context.getString(R.string.mtrl_picker_start_date_description), dayContentDescription);
+    } else if (isEndOfRange) {
+      return String.format(
+          context.getString(R.string.mtrl_picker_end_date_description), dayContentDescription);
+    }
+    return dayContentDescription;
+  }
+
+  /**
+   * Returns the year content description.
+   *
+   * @param context the {@link Context}
+   * @param year the year, example: 2020
+   * @return Year content description string
+   */
+  static String getYearContentDescription(Context context, int year) {
+    if (UtcDates.getTodayCalendar().get(Calendar.YEAR) == year) {
+      return String.format(
+          context.getString(R.string.mtrl_picker_navigate_to_current_year_description), year);
+    }
+    return String.format(
+        context.getString(R.string.mtrl_picker_navigate_to_year_description), year);
   }
 }

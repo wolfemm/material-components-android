@@ -50,6 +50,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RestrictTo;
 import androidx.annotation.StringRes;
 import androidx.annotation.StyleRes;
+import androidx.annotation.VisibleForTesting;
 import androidx.core.util.Pair;
 import androidx.core.view.OnApplyWindowInsetsListener;
 import androidx.core.view.ViewCompat;
@@ -445,11 +446,14 @@ public final class MaterialDatePicker<S> extends DialogFragment {
         textInputMode && isLandscape() ? singleLineTitleText : fullTitleText);
   }
 
-  private void updateHeader() {
-    String headerText = getHeaderText();
-    headerSelectionText.setContentDescription(
-        String.format(getString(R.string.mtrl_picker_announce_current_selection), headerText));
+  @VisibleForTesting
+  void updateHeader(String headerText) {
+    headerSelectionText.setContentDescription(getHeaderContentDescription());
     headerSelectionText.setText(headerText);
+  }
+
+  private String getHeaderContentDescription() {
+    return getDateSelector().getSelectionContentDescription(requireContext());
   }
 
   private void startPickerFragment() {
@@ -464,7 +468,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
                 getDateSelector(), themeResId, calendarConstraints)
             : calendar;
     updateTitle(textInputMode);
-    updateHeader();
+    updateHeader(getHeaderText());
 
     FragmentTransaction fragmentTransaction = getChildFragmentManager().beginTransaction();
     fragmentTransaction.replace(R.id.mtrl_calendar_frame, pickerFragment);
@@ -474,7 +478,7 @@ public final class MaterialDatePicker<S> extends DialogFragment {
         new OnSelectionChangedListener<S>() {
           @Override
           public void onSelectionChanged(S selection) {
-            updateHeader();
+            updateHeader(getHeaderText());
             confirmButton.setEnabled(getDateSelector().isSelectionComplete());
           }
 
