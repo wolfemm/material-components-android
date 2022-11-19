@@ -296,6 +296,9 @@ public class TabLayout extends HorizontalScrollView {
   @Retention(RetentionPolicy.SOURCE)
   public @interface TabGravity {}
 
+  // indicatorPosition keeps track of where the indicator is.
+  int indicatorPosition = -1;
+
   /**
    * Indicator gravity used to align the tab selection indicator to the bottom of the {@link
    * TabLayout}. This will only take effect if the indicator height is set via the custom indicator
@@ -570,7 +573,7 @@ public class TabLayout extends HorizontalScrollView {
         a.getDimensionPixelSize(R.styleable.TabLayout_tabPaddingBottom, tabPaddingBottom);
 
     if (ThemeEnforcement.isMaterial3Theme(context)) {
-      defaultTabTextAppearance = R.attr.textAppearanceLabelLarge;
+      defaultTabTextAppearance = R.attr.textAppearanceTitleSmall;
     } else {
       defaultTabTextAppearance = R.attr.textAppearanceButton;
     }
@@ -1887,7 +1890,7 @@ public class TabLayout extends HorizontalScrollView {
   }
 
   /**
-   * Called when a selected tab is added. Unselects all other tabs in the TabLayout.
+   * Called when a tab is selected. Unselects all other tabs in the TabLayout.
    *
    * @param position Position of the selected tab.
    */
@@ -1896,6 +1899,16 @@ public class TabLayout extends HorizontalScrollView {
     if (position < tabCount) {
       for (int i = 0; i < tabCount; i++) {
         final View child = slidingTabIndicator.getChildAt(i);
+        // Update the tab view if it needs to be updated (eg. it's newly selected and it is not
+        // yet selected, or it is selected and something else was selected).
+        if ((i == position && !child.isSelected()) || (i != position && child.isSelected())) {
+          child.setSelected(i == position);
+          child.setActivated(i == position);
+          if (child instanceof TabView) {
+            ((TabView) child).updateTab();
+          }
+          continue;
+        }
         child.setSelected(i == position);
         child.setActivated(i == position);
       }
@@ -1948,15 +1961,9 @@ public class TabLayout extends HorizontalScrollView {
       // If the current tab is still attached to the TabLayout.
       if (currentTab != null && currentTab.parent != null) {
         dispatchTabUnselected(currentTab);
-        if (currentTab.view != null) {
-          currentTab.view.update();
-        }
       }
       if (tab != null) {
         dispatchTabSelected(tab);
-        if (tab.view != null) {
-          tab.view.update();
-        }
       }
     }
   }
@@ -2692,7 +2699,7 @@ public class TabLayout extends HorizontalScrollView {
       setSelected(false);
     }
 
-    final void update() {
+    final void updateTab() {
       final Tab tab = this.tab;
       final View custom = tab != null ? tab.getCustomView() : null;
       if (custom != null) {
@@ -2768,8 +2775,12 @@ public class TabLayout extends HorizontalScrollView {
         // has been explicitly set.
         setContentDescription(tab.contentDesc);
       }
+    }
+
+    final void update() {
+      updateTab();
       // Finally update our selected state
-      setSelected(tab != null && tab.isSelected());
+      setSelected(this.tab != null && this.tab.isSelected());
     }
 
     private void inflateAndAddDefaultIconView() {
@@ -3122,6 +3133,7 @@ public class TabLayout extends HorizontalScrollView {
      * @param positionOffset Value from [0, 1) indicating the offset from the tab at position.
      */
     void setIndicatorPositionFromTabPosition(int position, float positionOffset) {
+      indicatorPosition = position;
       if (indicatorAnimator != null && indicatorAnimator.isRunning()) {
         indicatorAnimator.cancel();
       }
@@ -3227,9 +3239,14 @@ public class TabLayout extends HorizontalScrollView {
 
     /** Immediately update the indicator position to the currently selected position. */
     private void jumpIndicatorToSelectedPosition() {
+      // Don't update the indicator position if the scroll state is not idle.
+      if (pageChangeListener != null && pageChangeListener.scrollState != SCROLL_STATE_IDLE) {
+        return;
+      }
       final View currentView = getChildAt(getSelectedTabPosition());
       tabIndicatorInterpolator.setIndicatorBoundsForTab(
           TabLayout.this, currentView, tabSelectedIndicator);
+      indicatorPosition = getSelectedTabPosition();
     }
 
     /**
@@ -3271,7 +3288,9 @@ public class TabLayout extends HorizontalScrollView {
      * @param duration The duration over which the animation should take place.
      */
     void animateIndicatorToPosition(final int position, int duration) {
-      if (indicatorAnimator != null && indicatorAnimator.isRunning()) {
+      if (indicatorAnimator != null
+          && indicatorAnimator.isRunning()
+          && indicatorPosition != position) {
         indicatorAnimator.cancel();
       }
 
@@ -3288,6 +3307,11 @@ public class TabLayout extends HorizontalScrollView {
      */
     private void updateOrRecreateIndicatorAnimation(
         boolean recreateAnimation, final int position, int duration) {
+      // If the indicator position is already the target position, we don't need to update the
+      // indicator animation because nothing has changed.
+      if (indicatorPosition == position) {
+        return;
+      }
       final View currentView = getChildAt(getSelectedTabPosition());
       final View targetView = getChildAt(position);
       if (targetView == null) {
@@ -3295,6 +3319,7 @@ public class TabLayout extends HorizontalScrollView {
         jumpIndicatorToSelectedPosition();
         return;
       }
+      indicatorPosition = position;
 
       // Create the update listener with the new target indicator positions. If we're not recreating
       // then animationStartLeft/Right will be the same as when the previous animator was created.
