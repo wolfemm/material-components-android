@@ -41,6 +41,7 @@ import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -57,6 +58,8 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.core.view.MarginLayoutParamsCompat;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.accessibility.AccessibilityManagerCompat;
+import androidx.core.view.accessibility.AccessibilityManagerCompat.TouchExplorationStateChangeListener;
 import androidx.core.widget.TextViewCompat;
 import androidx.customview.view.AbsSavedState;
 import com.google.android.material.appbar.AppBarLayout;
@@ -76,6 +79,41 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
  * methods, or their corresponding xml attributes. Instead, use {@link #setHint} or {@link
  * #setText}, or their corresponding xml attributes, to provide a text affordance for your {@link
  * SearchBar}.
+ *
+ * <p>The example below shows how to use the {@link SearchBar} and {@link SearchView} together:
+ *
+ * <pre>
+ * &lt;androidx.coordinatorlayout.widget.CoordinatorLayout
+ *     android:layout_width=&quot;match_parent&quot;
+ *     android:layout_height=&quot;match_parent&quot;&gt;
+ *
+ *   &lt;!-- NestedScrollingChild goes here (NestedScrollView, RecyclerView, etc.). --&gt;
+ *   &lt;androidx.core.widget.NestedScrollView
+ *       android:layout_width=&quot;match_parent&quot;
+ *       android:layout_height=&quot;match_parent&quot;
+ *       app:layout_behavior=&quot;@string/searchbar_scrolling_view_behavior&quot;&gt;
+ *     &lt;!-- Screen content goes here. --&gt;
+ *   &lt;/androidx.core.widget.NestedScrollView&gt;
+ *
+ *   &lt;com.google.android.material.appbar.AppBarLayout
+ *       android:layout_width=&quot;match_parent&quot;
+ *       android:layout_height=&quot;wrap_content&quot;&gt;
+ *     &lt;com.google.android.material.search.SearchBar
+ *         android:id=&quot;@+id/search_bar&quot;
+ *         android:layout_width=&quot;match_parent&quot;
+ *         android:layout_height=&quot;wrap_content&quot;
+ *         android:hint=&quot;@string/searchbar_hint&quot; /&gt;
+ *   &lt;/com.google.android.material.appbar.AppBarLayout&gt;
+ *
+ *   &lt;com.google.android.material.search.SearchView
+ *       android:layout_width=&quot;match_parent&quot;
+ *       android:layout_height=&quot;match_parent&quot;
+ *       android:hint=&quot;@string/searchbar_hint&quot;
+ *       app:layout_anchor=&quot;@id/search_bar&quot;&gt;
+ *     &lt;!-- Search suggestions/results go here (ScrollView, RecyclerView, etc.). --&gt;
+ *   &lt;/com.google.android.material.search.SearchView&gt;
+ * &lt;/androidx.coordinatorlayout.widget.CoordinatorLayout&gt;
+ * </pre>
  */
 public class SearchBar extends Toolbar {
 
@@ -95,13 +133,16 @@ public class SearchBar extends Toolbar {
   private final Drawable defaultNavigationIcon;
   private final boolean tintNavigationIcon;
   private final boolean forceDefaultNavigationOnClickListener;
-
   @Nullable private View centerView;
   @Nullable private Integer navigationIconTint;
   @Nullable private Drawable originalNavigationIconBackground;
   private int menuResId = -1;
   private boolean defaultScrollFlagsEnabled;
   private MaterialShapeDrawable backgroundShape;
+
+  @Nullable private final AccessibilityManager accessibilityManager;
+  private final TouchExplorationStateChangeListener touchExplorationStateChangeListener =
+      (boolean enabled) -> setFocusableInTouchMode(enabled);
 
   public SearchBar(@NonNull Context context) {
     this(context, null);
@@ -159,6 +200,35 @@ public class SearchBar extends Toolbar {
     ViewCompat.setElevation(this, elevation);
     initTextView(textAppearanceResId, text, hint);
     initBackground(shapeAppearanceModel, elevation, strokeWidth, strokeColor);
+
+    accessibilityManager =
+        (AccessibilityManager) getContext().getSystemService(Context.ACCESSIBILITY_SERVICE);
+    setupTouchExplorationStateChangeListener();
+  }
+
+  private void setupTouchExplorationStateChangeListener() {
+    if (accessibilityManager != null) {
+      // Handle the case where touch exploration is already enabled.
+      if (accessibilityManager.isEnabled() && accessibilityManager.isTouchExplorationEnabled()) {
+        setFocusableInTouchMode(true);
+      }
+
+      // Handle the case where touch exploration state can change while the view is active.
+      addOnAttachStateChangeListener(
+          new OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View ignored) {
+              AccessibilityManagerCompat.addTouchExplorationStateChangeListener(
+                  accessibilityManager, touchExplorationStateChangeListener);
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(View ignored) {
+              AccessibilityManagerCompat.removeTouchExplorationStateChangeListener(
+                  accessibilityManager, touchExplorationStateChangeListener);
+            }
+          });
+    }
   }
 
   private void validateAttributes(@Nullable AttributeSet attributeSet) {
@@ -457,10 +527,7 @@ public class SearchBar extends Toolbar {
     return centerView;
   }
 
-  /**
-   * Sets and adds the center view as a child. If you've set a center view and would like to remove
-   * it, pass in null for {@param view}.
-   */
+  /** Sets the center view as a child. Pass in null for {@code view} to remove the center view. */
   public void setCenterView(@Nullable View view) {
     if (centerView != null) {
       removeView(centerView);
@@ -594,26 +661,18 @@ public class SearchBar extends Toolbar {
    * Registers a callback for the On Load Animation, started and stopped via {@link
    * #startOnLoadAnimation()} and {@link #stopOnLoadAnimation()}.
    */
-  public void registerOnLoadAnimationCallback(
+  public void addOnLoadAnimationCallback(
       @NonNull OnLoadAnimationCallback onLoadAnimationCallback) {
-    searchBarAnimationHelper.registerOnLoadAnimationCallback(onLoadAnimationCallback);
+    searchBarAnimationHelper.addOnLoadAnimationCallback(onLoadAnimationCallback);
   }
 
   /**
    * Unregisters a callback for the On Load Animation, started and stopped via {@link
    * #startOnLoadAnimation()} and {@link #stopOnLoadAnimation()}.
    */
-  public boolean unregisterOnLoadAnimationCallback(
+  public boolean removeOnLoadAnimationCallback(
       @NonNull OnLoadAnimationCallback onLoadAnimationCallback) {
-    return searchBarAnimationHelper.unregisterOnLoadAnimationCallback(onLoadAnimationCallback);
-  }
-
-  /**
-   * Clears all registered callbacks for the On Load Animation, started and stopped via {@link
-   * #startOnLoadAnimation()} and {@link #stopOnLoadAnimation()}.
-   */
-  public void clearOnLoadAnimationCallbacks() {
-    searchBarAnimationHelper.clearOnLoadAnimationCallbacks();
+    return searchBarAnimationHelper.removeOnLoadAnimationCallback(onLoadAnimationCallback);
   }
 
   /** Returns whether the expand animation is running. */
@@ -674,14 +733,6 @@ public class SearchBar extends Toolbar {
     return searchBarAnimationHelper.removeExpandAnimationListener(listener);
   }
 
-  /**
-   * Removes all expand animation listeners added via {@link
-   * #addExpandAnimationListener(AnimatorListenerAdapter)}.
-   */
-  public void clearExpandAnimationListeners() {
-    searchBarAnimationHelper.clearExpandAnimationListeners();
-  }
-
   /** Returns whether the collapse animation is running. */
   public boolean isCollapsing() {
     return searchBarAnimationHelper.isCollapsing();
@@ -738,14 +789,6 @@ public class SearchBar extends Toolbar {
    */
   public boolean removeCollapseAnimationListener(@NonNull AnimatorListenerAdapter listener) {
     return searchBarAnimationHelper.removeCollapseAnimationListener(listener);
-  }
-
-  /**
-   * Removes all collapse animation listeners added via {@link
-   * #addCollapseAnimationListener(AnimatorListenerAdapter)}.
-   */
-  public void clearCollapseAnimationListeners() {
-    searchBarAnimationHelper.clearCollapseAnimationListeners();
   }
 
   int getMenuResId() {
