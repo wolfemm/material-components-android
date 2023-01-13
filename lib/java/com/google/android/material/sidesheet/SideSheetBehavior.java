@@ -36,7 +36,6 @@ import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.ViewGroup.MarginLayoutParams;
 import android.view.ViewParent;
-import android.view.accessibility.AccessibilityEvent;
 import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -50,7 +49,6 @@ import androidx.core.view.accessibility.AccessibilityNodeInfoCompat.Accessibilit
 import androidx.core.view.accessibility.AccessibilityViewCommand;
 import androidx.customview.view.AbsSavedState;
 import androidx.customview.widget.ViewDragHelper;
-import com.google.android.material.internal.ViewUtils;
 import com.google.android.material.resources.MaterialResources;
 import com.google.android.material.shape.MaterialShapeDrawable;
 import com.google.android.material.shape.ShapeAppearanceModel;
@@ -64,6 +62,9 @@ import java.util.Set;
  */
 public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavior<V>
     implements Sheet<SideSheetCallback> {
+
+  private static final int DEFAULT_ACCESSIBILITY_PANE_TITLE =
+      R.string.side_sheet_accessibility_pane_title;
 
   private SheetDelegate sheetDelegate;
 
@@ -104,6 +105,7 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
 
   private int childWidth;
   private int parentWidth;
+  private int innerMargin;
 
   @Nullable private WeakReference<V> viewRef;
   @Nullable private WeakReference<View> coplanarSiblingViewRef;
@@ -289,24 +291,30 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
       } else if (backgroundTint != null) {
         ViewCompat.setBackgroundTintList(child, backgroundTint);
       }
+      updateSheetVisibility(child);
+
       updateAccessibilityActions();
       if (ViewCompat.getImportantForAccessibility(child)
           == ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_AUTO) {
         ViewCompat.setImportantForAccessibility(child, ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_YES);
       }
+      ensureAccessibilityPaneTitleIsSet(child);
     }
     if (viewDragHelper == null) {
       viewDragHelper = ViewDragHelper.create(parent, dragCallback);
     }
 
-    int savedOutwardEdge = sheetDelegate.getOutwardEdge(child);
+    int savedOuterEdge = sheetDelegate.getOuterEdge(child);
     // First let the parent lay it out.
     parent.onLayoutChild(child, layoutDirection);
     // Offset the sheet.
     parentWidth = parent.getWidth();
     childWidth = child.getWidth();
 
-    int currentOffset = calculateCurrentOffset(savedOutwardEdge, child);
+    MarginLayoutParams margins = (MarginLayoutParams) child.getLayoutParams();
+    innerMargin = margins != null ? sheetDelegate.calculateInnerMargin(margins) : 0;
+
+    int currentOffset = calculateCurrentOffset(savedOuterEdge, child);
 
     ViewCompat.offsetLeftAndRight(child, currentOffset);
 
@@ -319,6 +327,23 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
       }
     }
     return true;
+  }
+
+  private void updateSheetVisibility(@NonNull View sheet) {
+    // Sheet visibility is updated on state change to make TalkBack speak the accessibility pane
+    // title when the sheet expands.
+    int visibility = state == STATE_HIDDEN ? View.INVISIBLE : View.VISIBLE;
+    if (sheet.getVisibility() != visibility) {
+      sheet.setVisibility(visibility);
+    }
+  }
+
+  private void ensureAccessibilityPaneTitleIsSet(View sheet) {
+    // Set default accessibility pane title that TalkBack will speak when the sheet is expanded.
+    if (ViewCompat.getAccessibilityPaneTitle(sheet) == null) {
+      ViewCompat.setAccessibilityPaneTitle(
+          sheet, sheet.getResources().getString(DEFAULT_ACCESSIBILITY_PANE_TITLE));
+    }
   }
 
   private void maybeAssignCoplanarSiblingViewBasedId(@NonNull CoordinatorLayout parent) {
@@ -338,20 +363,20 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
     return parentWidth;
   }
 
-  private int calculateCurrentOffset(int savedOutwardEdge, V child) {
+  int getInnerMargin() {
+    return innerMargin;
+  }
+
+  private int calculateCurrentOffset(int savedOuterEdge, V child) {
     int currentOffset;
 
     switch (state) {
       case STATE_EXPANDED:
-        // TODO (b/261619910): This is a workaround for a bug where the expanded offset was getting
-        // recalculated if onLayoutChild() was called while the sheet was in the process of
-        // expanding/offsetting. Revisit this and refactor if necessary when adding left based
-        // sheets.
-        currentOffset = ViewUtils.isLayoutRtl(child) ? getExpandedOffset() : 0;
+        currentOffset = 0;
         break;
       case STATE_DRAGGING:
       case STATE_SETTLING:
-        currentOffset = savedOutwardEdge - sheetDelegate.getOutwardEdge(child);
+        currentOffset = savedOuterEdge - sheetDelegate.getOuterEdge(child);
         break;
       case STATE_HIDDEN:
         currentOffset = sheetDelegate.getHiddenOffset();
@@ -365,7 +390,7 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
   @Override
   public boolean onInterceptTouchEvent(
       @NonNull CoordinatorLayout parent, @NonNull V child, @NonNull MotionEvent event) {
-    if (!child.isShown() || !draggable) {
+    if (!shouldInterceptTouchEvent(child)) {
       ignoreEvents = true;
       return false;
     }
@@ -395,6 +420,10 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
     return !ignoreEvents
         && viewDragHelper != null
         && viewDragHelper.shouldInterceptTouchEvent(event);
+  }
+
+  private boolean shouldInterceptTouchEvent(@NonNull V child) {
+    return (child.isShown() || ViewCompat.getAccessibilityPaneTitle(child) != null) && draggable;
   }
 
   int getSignificantVelocityThreshold() {
@@ -583,9 +612,7 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
       return;
     }
 
-    if (state == STATE_EXPANDED) {
-      updateAccessibilityFocusOnExpansion();
-    }
+    updateSheetVisibility(sheet);
 
     for (SheetCallback callback : callbacks) {
       callback.onStateChanged(sheet, state);
@@ -647,14 +674,14 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
     }
   }
 
-  int getOutwardEdgeOffsetForState(@StableSheetState int state) {
+  int getOuterEdgeOffsetForState(@StableSheetState int state) {
     switch (state) {
       case STATE_EXPANDED:
         return getExpandedOffset();
       case STATE_HIDDEN:
         return sheetDelegate.getHiddenOffset();
       default:
-        throw new IllegalArgumentException("Invalid state to get outward edge offset: " + state);
+        throw new IllegalArgumentException("Invalid state to get outer edge offset: " + state);
     }
   }
 
@@ -722,9 +749,9 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
         }
       };
 
-  private void dispatchOnSlide(@NonNull View child, int outwardEdge) {
+  private void dispatchOnSlide(@NonNull View child, int outerEdge) {
     if (!callbacks.isEmpty()) {
-      float slideOffset = sheetDelegate.calculateSlideOffsetBasedOnOutwardEdge(outwardEdge);
+      float slideOffset = sheetDelegate.calculateSlideOffset(outerEdge);
       for (SheetCallback callback : callbacks) {
         callback.onSlide(child, slideOffset);
       }
@@ -902,22 +929,6 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
       throw new IllegalArgumentException("The view is not associated with SideSheetBehavior");
     }
     return (SideSheetBehavior<V>) behavior;
-  }
-
-  private void updateAccessibilityFocusOnExpansion() {
-    if (viewRef == null) {
-      return;
-    }
-    View view = viewRef.get();
-    if (view instanceof ViewGroup && ((ViewGroup) view).getChildCount() > 0) {
-      ViewGroup viewContainer = (ViewGroup) view;
-      View firstNestedChild = viewContainer.getChildAt(0);
-      if (firstNestedChild != null) {
-        firstNestedChild.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
-      }
-    } else {
-      view.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
-    }
   }
 
   private void updateAccessibilityActions() {

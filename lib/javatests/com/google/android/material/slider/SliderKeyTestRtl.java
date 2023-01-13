@@ -17,9 +17,9 @@
 package com.google.android.material.slider;
 
 import static android.os.Looper.getMainLooper;
-import static com.google.android.material.slider.RtlTestUtils.applyRtlPseudoLocale;
-import static com.google.android.material.slider.RtlTestUtils.checkAppSupportsRtl;
-import static com.google.android.material.slider.RtlTestUtils.checkPlatformSupportsRtl;
+import static com.google.android.material.testing.RtlTestUtils.applyRtlPseudoLocale;
+import static com.google.android.material.testing.RtlTestUtils.checkAppSupportsRtl;
+import static com.google.android.material.testing.RtlTestUtils.checkPlatformSupportsRtl;
 import static com.google.common.truth.Truth.assertThat;
 import static org.robolectric.Shadows.shadowOf;
 
@@ -33,15 +33,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 
-import org.junit.Ignore;
-
 /**
  * Tests for key handling of {@link Slider} in right-to-left layout.
  */
 @RunWith(RobolectricTestRunner.class)
-@Ignore("Fix RTL support for Robolectric tests.")
+@org.junit.Ignore("(b/265311943) Fix RTL support for Robolectric tests.")
 public final class SliderKeyTestRtl extends SliderKeyTestCommon {
 
+  @RequiresApi(api = VERSION_CODES.JELLY_BEAN_MR1)
   @Before
   public void checkRtl() {
     checkPlatformSupportsRtl();

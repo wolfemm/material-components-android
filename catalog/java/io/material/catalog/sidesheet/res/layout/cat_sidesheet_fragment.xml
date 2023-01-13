@@ -20,13 +20,15 @@
   android:id="@+id/cat_sidesheet_coordinator_layout"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
+  app:backgroundTint="?attr/colorSurfaceVariant"
   android:fitsSystemWindows="true">
 
   <com.google.android.material.appbar.AppBarLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    app:liftOnScrollTargetViewId="@id/nested_scroll_view"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="true"
+    app:liftOnScroll="false"
+    android:stateListAnimator="@null">
 
     <androidx.appcompat.widget.Toolbar
       android:id="@+id/toolbar"
@@ -54,6 +56,12 @@
         android:layout_marginTop="16dp"
         android:text="@string/cat_sidesheet_standard_button_show_text" />
       <Button
+        android:id="@+id/show_standard_detached_side_sheet_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/cat_sidesheet_standard_detached_button_show_text" />
+      <Button
         android:id="@+id/show_vertically_scrolling_side_sheet_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -66,11 +74,23 @@
         android:layout_marginTop="16dp"
         android:text="@string/cat_sidesheet_modal_button_show_text" />
       <Button
+        android:id="@+id/show_modal_detached_side_sheet_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/cat_sidesheet_modal_detached_button_show_text" />
+      <Button
         android:id="@+id/show_coplanar_side_sheet_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="@string/cat_sidesheet_coplanar_button_show_text" />
+      <Button
+        android:id="@+id/show_coplanar_detached_side_sheet_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/cat_sidesheet_coplanar_detached_button_show_text" />
       <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -83,7 +103,6 @@
     style="@style/Widget.Material3.SideSheet"
     android:layout_width="256dp"
     android:layout_height="match_parent"
-    android:layout_gravity="end"
     android:orientation="vertical"
     app:layout_behavior="@string/side_sheet_behavior"
     tools:targetApi="lollipop">
@@ -91,11 +110,21 @@
   </LinearLayout>
 
   <LinearLayout
+    android:id="@+id/standard_detached_side_sheet_container"
+    style="@style/Widget.Material3.SideSheet.Detached"
+    android:layout_width="256dp"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    app:layout_behavior="@string/side_sheet_behavior"
+    tools:targetApi="lollipop">
+    <include layout="@layout/cat_sidesheet_detached_content" />
+  </LinearLayout>
+
+  <LinearLayout
     android:id="@+id/vertically_scrolling_side_sheet_container"
     style="@style/Widget.Material3.SideSheet"
     android:layout_width="256dp"
     android:layout_height="match_parent"
-    android:layout_gravity="end"
     android:orientation="vertical"
     app:layout_behavior="@string/side_sheet_behavior"
     tools:targetApi="lollipop">
@@ -107,12 +136,23 @@
     style="@style/Widget.Material3.SideSheet"
     android:layout_width="256dp"
     android:layout_height="match_parent"
-    android:layout_gravity="end"
     android:orientation="vertical"
     app:coplanarSiblingViewId="@id/nested_scroll_view"
     app:layout_behavior="@string/side_sheet_behavior"
     tools:targetApi="lollipop">
     <include layout="@layout/cat_sidesheet_content_coplanar" />
+  </LinearLayout>
+
+  <LinearLayout
+    android:id="@+id/coplanar_detached_side_sheet_container"
+    style="@style/Widget.Material3.SideSheet.Detached"
+    android:layout_width="256dp"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    app:coplanarSiblingViewId="@id/nested_scroll_view"
+    app:layout_behavior="@string/side_sheet_behavior"
+    tools:targetApi="lollipop">
+    <include layout="@layout/cat_sidesheet_content_coplanar_detached" />
   </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
