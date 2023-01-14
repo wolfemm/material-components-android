@@ -196,11 +196,13 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
    * the delay elapsed before starting the show action. Otherwise start showing immediately.
    */
   public void show() {
-    removeCallbacks(delayedHide);
+    if (pendingDelayedAction.compareAndSet(delayedHide, null)) {
+      removeCallbacks(delayedHide);
+    }
 
     if (getVisibility() == VISIBLE) {
       // No need to show, as the component is already visible.
-      pendingDelayedAction.set(null);
+      pendingDelayedAction.compareAndSet(delayedShow, null);
       return;
     }
 
@@ -209,8 +211,9 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
         postDelayed(delayedShow, showDelay);
       }
     } else {
-      pendingDelayedAction.set(null);
-      delayedShow.run();
+      removeCallbacks(delayedShow);
+      pendingDelayedAction.compareAndSet(delayedShow, null);
+      internalShow();
     }
   }
 
@@ -233,25 +236,29 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
    * until the delay elapsed before starting the hide action. Otherwise start hiding immediately.
    */
   public void hide() {
-    removeCallbacks(delayedShow);
-    pendingDelayedAction.compareAndSet(delayedShow, null);
+    if (pendingDelayedAction.compareAndSet(delayedShow, null)) {
+      removeCallbacks(delayedShow);
+    }
 
     if (getVisibility() != VISIBLE) {
       // No need to hide, as the component is already invisible.
-      pendingDelayedAction.set(null);
+      pendingDelayedAction.compareAndSet(delayedHide, null);
       return;
     }
 
     long timeElapsedSinceShowStart = SystemClock.uptimeMillis() - lastShowStartTime;
     boolean enoughTimeElapsed = timeElapsedSinceShowStart >= minHideDelay;
     if (enoughTimeElapsed) {
-      removeCallbacks(delayedHide);
-      pendingDelayedAction.set(null);
-      delayedHide.run();
+      if (pendingDelayedAction.compareAndSet(delayedHide, null)) {
+        removeCallbacks(delayedHide);
+      }
+      internalHide();
       return;
     }
 
-    if (pendingDelayedAction.getAndSet(delayedHide) != delayedHide) {
+    Runnable previousPending = pendingDelayedAction.getAndSet(delayedHide);
+    if (previousPending != delayedHide) {
+      removeCallbacks(previousPending);
       postDelayed(delayedHide, /*delayMillis=*/ minHideDelay - timeElapsedSinceShowStart);
     }
   }
@@ -801,8 +808,9 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
       new Runnable() {
         @Override
         public void run() {
-          pendingDelayedAction.compareAndSet(delayedShow, null);
-          internalShow();
+          if (pendingDelayedAction.compareAndSet(delayedShow, null)) {
+            internalShow();
+          }
         }
       };
 
@@ -815,9 +823,10 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
       new Runnable() {
         @Override
         public void run() {
-          pendingDelayedAction.compareAndSet(delayedHide, null);
-          internalHide();
-          lastShowStartTime = -1L;
+          if (pendingDelayedAction.compareAndSet(delayedHide, null)) {
+            internalHide();
+            lastShowStartTime = -1L;
+          }
         }
       };
 
