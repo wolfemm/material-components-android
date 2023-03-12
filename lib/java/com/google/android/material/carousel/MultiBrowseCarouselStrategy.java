@@ -26,21 +26,23 @@ import android.content.Context;
 import androidx.recyclerview.widget.RecyclerView.LayoutParams;
 import android.view.View;
 import androidx.annotation.NonNull;
+import androidx.annotation.RestrictTo;
+import androidx.annotation.RestrictTo.Scope;
 
 /**
- * A Carousel configuration that creates a horizontal list with full sized items at the left of the
- * scroll container that mask as the approach the edges of the container.
+ * A {@link CarouselStrategy} that knows how to size and fit large, medium and small items into a
+ * container to create a layout for quick browsing of multiple items at once.
  *
- * <p>Note that this configuration will adjust the size of large items. In order to ensure large,
- * medium, and small items both fit perfectly into the available space and are numbered/arranged in
- * a visually pleasing and opinionated way, this configuration finds the nearest number of large
- * items that will fit into an approved arrangement that requires the least amount of size
- * adjustment necessary.
+ * <p>Note that this strategy will adjust the size of large items. In order to ensure large, medium,
+ * and small items both fit perfectly into the available space and are numbered/arranged in a
+ * visually pleasing and opinionated way, this strategy finds the nearest number of large items that
+ * will fit into an approved arrangement that requires the least amount of size adjustment
+ * necessary.
  *
  * <p>This class will automatically be reversed by {@link CarouselLayoutManager} if being laid out
  * right-to-left and does not need to make any account for layout direction itself.
  */
-public final class StartCarouselConfiguration extends MultiBrowseCarouselConfiguration {
+public final class MultiBrowseCarouselStrategy extends CarouselStrategy {
 
   // The percentage by which a medium item needs to be larger than a small item and smaller
   // than an large item. This is used to ensure a medium item is truly somewhere between the
@@ -56,30 +58,43 @@ public final class StartCarouselConfiguration extends MultiBrowseCarouselConfigu
   // unmasked items visible at once.
   private final boolean forceCompactArrangement;
 
-  public StartCarouselConfiguration(@NonNull Carousel carousel) {
-    this(carousel, false);
+  public MultiBrowseCarouselStrategy() {
+    this(false);
   }
 
-  public StartCarouselConfiguration(@NonNull Carousel carousel, boolean forceCompactArrangement) {
-    super(carousel);
+  /**
+   * Create a new instance of {@link MultiBrowseCarouselStrategy}.
+   *
+   * @param forceCompactArrangement true if items should be fit in a way that maximizes the number
+   *     of large, unmasked items. false if this strategy is free to determine an opinionated
+   *     balance between item sizes.
+   *
+   * @hide
+   */
+  @RestrictTo(Scope.LIBRARY_GROUP)
+  public MultiBrowseCarouselStrategy(boolean forceCompactArrangement) {
     this.forceCompactArrangement = forceCompactArrangement;
   }
 
-  @Override
-  protected float getExtraSmallSize(@NonNull Context context) {
+  private float getExtraSmallSize(@NonNull Context context) {
     return context.getResources().getDimension(R.dimen.m3_carousel_gone_size);
+  }
+
+  private float getSmallSize(@NonNull Context context) {
+    return context.getResources().getDimension(R.dimen.m3_carousel_small_item_size);
   }
 
   @Override
   @NonNull
-  protected KeylineState onFirstChildMeasuredWithMargins(@NonNull View child) {
+  KeylineState onFirstChildMeasuredWithMargins(
+      @NonNull Carousel carousel, @NonNull View child) {
     LayoutParams childLayoutParams = (LayoutParams) child.getLayoutParams();
     float childHorizontalMargins = childLayoutParams.leftMargin + childLayoutParams.rightMargin;
 
     float smallChildWidth = getSmallSize(child.getContext()) + childHorizontalMargins;
     float extraSmallChildWidth = getExtraSmallSize(child.getContext()) + childHorizontalMargins;
 
-    float availableSpace = getCarousel().getContainerWidth();
+    float availableSpace = carousel.getContainerWidth();
 
     // The minimum viable arrangement is 1 large and 1 small child. A single large item size
     // cannot be greater than the available space minus a small child width.
@@ -174,7 +189,7 @@ public final class StartCarouselConfiguration extends MultiBrowseCarouselConfigu
 
     float smallStartCenterX = smallCount > 0 ? start + (smallChildWidth / 2F) : mediumCenterX;
 
-    float extraSmallTailCenterX = getCarousel().getContainerWidth() + (extraSmallChildWidth / 2F);
+    float extraSmallTailCenterX = carousel.getContainerWidth() + (extraSmallChildWidth / 2F);
 
     float extraSmallMask =
         getChildMaskPercentage(extraSmallChildWidth, largeChildWidth, childHorizontalMargins);

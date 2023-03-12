@@ -20,12 +20,9 @@ import android.graphics.RectF;
 import android.view.View;
 import androidx.annotation.FloatRange;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
-/**
- * Interface for any view that can clip itself and all children to a percentage of its size.
- *
- * <p>TODO(b/238614892) Investigate moving to a ViewOutlineProvider.
- */
+/** Interface for any view that can clip itself and all children to a percentage of its size. */
 interface Maskable {
 
   /**
@@ -45,11 +42,13 @@ interface Maskable {
 
   /** Gets a {@link RectF} that this {@link View} is masking itself by. */
   @NonNull
-  RectF getMaskRect();
+  RectF getMaskRectF();
 
-  /** Adds an {@link OnMaskChangedListener}. */
-  void addOnMaskChangedListener(@NonNull OnMaskChangedListener listener);
-
-  /** Removes an {@link OnMaskChangedListener}. */
-  void removeOnMaskChangedListener(@NonNull OnMaskChangedListener listener);
+  /**
+   * Sets an {@link OnMaskChangedListener}.
+   *
+   * @param listener a listener to receive callbacks for changes in the mask or null to clear the
+   *     listener.
+   */
+  void setOnMaskChangedListener(@Nullable OnMaskChangedListener listener);
 }

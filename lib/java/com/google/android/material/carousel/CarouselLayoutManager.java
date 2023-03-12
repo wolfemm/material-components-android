@@ -22,19 +22,21 @@ import static com.google.android.material.animation.AnimationUtils.lerp;
 import static java.lang.Math.abs;
 import static java.lang.Math.max;
 
-import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.PointF;
 import android.graphics.Rect;
+import androidx.recyclerview.widget.LinearSmoothScroller;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.RecyclerView.LayoutManager;
 import androidx.recyclerview.widget.RecyclerView.LayoutParams;
 import androidx.recyclerview.widget.RecyclerView.Recycler;
 import androidx.recyclerview.widget.RecyclerView.State;
-import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityEvent;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RestrictTo;
@@ -52,18 +54,16 @@ import java.util.List;
  * A {@link LayoutManager} that can mask and offset items along the scrolling axis, creating a
  * unique list optimized for a stylized viewing experience.
  *
- * <p>Carousels require all children to be the same size and no larger than the size of the {@link
- * RecyclerView}. Typically, the first item in the adapter will be measured and used as the size for
- * all other children. Adapters can have multiple different ViewHolders but each View will be
- * measured and laid out using the dimensions received from the first child. This can differ
- * depending on the {@link CarouselConfiguration} implementation which can alternatively choose to
- * set child dimensions based on available space, ignoring child size all together.
+ * <p>{@link CarouselLayoutManager} requires all children to use {@link MaskableFrameLayout} as
+ * their root ViewGroup.
  *
- * <p>{@link CarouselLayoutManager} fills the scroll container as if items were laid out end-to-end.
- * A child's position between {@link Keyline}s (points along the scroll axis) is then used as a
- * fraction to animate child properties like offset and masking.
+ * <p>Note that when Carousel measures and lays out items, the first item in the adapter will be
+ * measured and it's desired size will be used to determine an appropriate size for all items in the
+ * carousel.
  */
 public class CarouselLayoutManager extends LayoutManager implements Carousel {
+
+  private static final String TAG = "CarouselLayoutManager";
 
   private int horizontalScrollOffset;
 
@@ -76,8 +76,9 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
   // will move the list to the start of the container.
   private int maxHorizontalScroll;
 
+  private boolean isDebuggingEnabled = false;
   private final DebugItemDecoration debugItemDecoration = new DebugItemDecoration();
-  @NonNull private CarouselConfiguration config;
+  @NonNull private CarouselStrategy carouselStrategy;
   @Nullable private KeylineStateList keylineStateList;
   // A KeylineState shifted for any current scroll offset.
   @Nullable private KeylineState currentKeylineState;
@@ -112,12 +113,7 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
   }
 
   public CarouselLayoutManager() {
-    setCarouselConfiguration(new StartCarouselConfiguration(this));
-  }
-
-  public CarouselLayoutManager(
-      @NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr, int defStyleRes) {
-    // TODO(b/238620200): Add and obtain carousel attrs set on RecyclerView
+    setCarouselStrategy(new MultiBrowseCarouselStrategy());
   }
 
   @Override
@@ -126,8 +122,12 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
         ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
   }
 
-  public void setCarouselConfiguration(@NonNull CarouselConfiguration carouselConfiguration) {
-    this.config = carouselConfiguration;
+  /**
+   * Sets the {@link CarouselStrategy} used by this layout manager to mask and offset child views as
+   * they move along the scrolling axis.
+   */
+  public void setCarouselStrategy(@NonNull CarouselStrategy carouselStrategy) {
+    this.carouselStrategy = carouselStrategy;
     this.keylineStateList = null;
     requestLayout();
   }
@@ -136,18 +136,20 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
   public void onLayoutChildren(Recycler recycler, State state) {
     if (state.getItemCount() <= 0) {
       removeAndRecycleAllViews(recycler);
+      currentFillStartPosition = 0;
       return;
     }
 
     boolean isRtl = isLayoutRtl();
 
     // If a keyline state hasn't been created, use the first child as a representative of how each
-    // child would like to be measured and allow the config to create a keyline state.
+    // child would like to be measured and allow the strategy to create a keyline state.
     boolean isInitialLoad = keylineStateList == null;
     if (isInitialLoad) {
       View firstChild = recycler.getViewForPosition(0);
       measureChildWithMargins(firstChild, 0, 0);
-      KeylineState keylineState = config.onFirstChildMeasuredWithMargins(firstChild);
+      KeylineState keylineState =
+          carouselStrategy.onFirstChildMeasuredWithMargins(this, firstChild);
       keylineStateList =
           KeylineStateList.from(this, isRtl ? KeylineState.reverse(keylineState) : keylineState);
     }
@@ -171,6 +173,10 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
           calculateShouldHorizontallyScrollBy(
               0, horizontalScrollOffset, minHorizontalScroll, maxHorizontalScroll);
     }
+
+    // Ensure currentFillStartPosition is valid if the number of items in the adapter has changed.
+    currentFillStartPosition = MathUtils.clamp(currentFillStartPosition, 0, state.getItemCount());
+
     updateCurrentKeylineStateForScrollOffset();
 
     detachAndScrapAttachedViews(recycler);
@@ -179,11 +185,19 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
 
   /**
    * Adds and places children into the {@link RecyclerView}, handling child layout and recycling
-   * according to this class' {@link CarouselConfiguration}.
+   * according to this class' {@link CarouselStrategy}.
    *
    * <p>This method is responsible for making sure views are added when additional space is created
    * due to an initial layout or a scroll event. All offsetting due to scroll events is done by
    * {@link #scrollBy(int, Recycler, State)}.
+   *
+   * <p>This layout manager tracks item location using two "models". The first is an end-to-end
+   * model that keeps track of items as if they were laid out one after the other and fully unmasked
+   * (the same way they would be laid out in a traditional list). This model is primarily useful for
+   * tracking scroll minimums, maximums, and offsets. The second model is an offset model which is
+   * the location of an item after it's position has been interpolated from {@link Keyline#loc}
+   * (it's end-to-end location) to {@link Keyline#locOffset}. This is the model in which children
+   * are actually laid out and drawn.
    *
    * @param recycler current recycler that is attached to the {@link RecyclerView}
    * @param state state passed by the {@link RecyclerView} with useful information like item count
@@ -205,12 +219,19 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
       addViewsEnd(recycler, state, lastPosition + 1);
     }
 
-    // Update the primary fill position from the filled view state.
+    validateChildOrderIfDebugging();
+  }
+
+  @Override
+  public void onLayoutCompleted(State state) {
+    super.onLayoutCompleted(state);
     if (getChildCount() == 0) {
       currentFillStartPosition = 0;
     } else {
       currentFillStartPosition = getPosition(getChildAt(0));
     }
+
+    validateChildOrderIfDebugging();
   }
 
   /**
@@ -234,7 +255,8 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
       if (isLocOffsetOutOfFillBoundsEnd(calculations.locOffset, calculations.range)) {
         continue;
       }
-      addAndLayoutView(calculations.child, calculations.locOffset);
+      // Add this child to the first index of the RecyclerView.
+      addAndLayoutView(calculations.child, /* index= */ 0, calculations.locOffset);
     }
   }
 
@@ -260,7 +282,58 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
       if (isLocOffsetOutOfFillBoundsStart(calculations.locOffset, calculations.range)) {
         continue;
       }
-      addAndLayoutView(calculations.child, calculations.locOffset);
+      // Add this child to the last index of the RecyclerView
+      addAndLayoutView(calculations.child, /* index= */ -1, calculations.locOffset);
+    }
+  }
+
+  /** Used for debugging. Logs the internal representation of children to default logger. */
+  private void logChildrenIfDebugging() {
+    if (!isDebuggingEnabled) {
+      return;
+    }
+
+    if (Log.isLoggable(TAG, Log.DEBUG)) {
+      Log.d(TAG, "internal representation of views on the screen");
+      for (int i = 0; i < getChildCount(); i++) {
+        View child = getChildAt(i);
+        float centerX = getDecoratedCenterXWithMargins(child);
+        Log.d(
+            TAG,
+            "item position " + getPosition(child) + ", center:" + centerX + ", child index:" + i);
+      }
+      Log.d(TAG, "==============");
+    }
+  }
+
+  /**
+   * Used for debugging. Validates that child views are laid out in correct order. This is important
+   * because rest of the algorithm relies on this constraint.
+   *
+   * <p>Child 0 should be closest to adapter position 0 and last child should be closest to the last
+   * adapter position.
+   */
+  private void validateChildOrderIfDebugging() {
+    if (!isDebuggingEnabled || getChildCount() < 1) {
+      return;
+    }
+
+    for (int i = 0; i < getChildCount() - 1; i++) {
+      int currPos = getPosition(getChildAt(i));
+      int nextPos = getPosition(getChildAt(i + 1));
+      if (currPos > nextPos) {
+        logChildrenIfDebugging();
+        throw new IllegalStateException(
+            "Detected invalid child order. Child at index ["
+                + i
+                + "] had adapter position ["
+                + currPos
+                + "] and child at index ["
+                + (i + 1)
+                + "] had adapter position ["
+                + nextPos
+                + "].");
+      }
     }
   }
 
@@ -281,7 +354,7 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
     View child = recycler.getViewForPosition(position);
     measureChildWithMargins(child, 0, 0);
 
-    float centerX = addEnd((int) start, (int) halfItemSize);
+    int centerX = addEnd((int) start, (int) halfItemSize);
     KeylineRange range =
         getSurroundingKeylineRange(currentKeylineState.getKeylines(), centerX, false);
 
@@ -296,11 +369,13 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
    * scrolling axis.
    *
    * @param child the child view to add and lay out
+   * @param index the index at which to add the child to the RecyclerView. Use 0 for adding to the
+   *     start of the list and -1 for adding to the end.
    * @param offsetCx where the center of the masked child should be placed along the scrolling axis
    */
-  private void addAndLayoutView(View child, float offsetCx) {
+  private void addAndLayoutView(View child, int index, float offsetCx) {
     float halfItemSize = currentKeylineState.getItemSize() / 2F;
-    addView(child);
+    addView(child, index);
     layoutDecoratedWithMargins(
         child,
         /* left= */ (int) (offsetCx - halfItemSize),
@@ -323,7 +398,7 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
    */
   private boolean isLocOffsetOutOfFillBoundsStart(float locOffset, KeylineRange range) {
     float maskedSize = getMaskedItemSizeForLocOffset(locOffset, range);
-    int maskedEnd = addEnd((int) locOffset, (int) (maskedSize / 2));
+    int maskedEnd = addEnd((int) locOffset, (int) (maskedSize / 2F));
     return isLayoutRtl() ? maskedEnd > getContainerWidth() : maskedEnd < 0;
   }
 
@@ -341,13 +416,42 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
    */
   private boolean isLocOffsetOutOfFillBoundsEnd(float locOffset, KeylineRange range) {
     float maskedSize = getMaskedItemSizeForLocOffset(locOffset, range);
-    int maskedStart = addStart((int) locOffset, (int) (maskedSize / 2));
+    int maskedStart = addStart((int) locOffset, (int) (maskedSize / 2F));
     return isLayoutRtl() ? maskedStart < 0 : maskedStart > getContainerWidth();
+  }
+
+  /**
+   * Returns the masked, decorated bounds with margins for {@code view}.
+   *
+   * <p>Note that this differs from the super method which returns the fully unmasked bounds of
+   * {@code view}.
+   *
+   * <p>Getting the masked, decorated bounds is useful for item decorations and other associated
+   * classes which need the actual visual bounds of an item in the RecyclerView. If the full,
+   * unmasked bounds is needed, see {@link RecyclerView#getDecoratedBoundsWithMargins(View, Rect)}.
+   *
+   * @param view the view element to check
+   * @param outBounds a rect that will receive the bounds of the element including its maks,
+   *     decoration, and margins.
+   */
+  @Override
+  public void getDecoratedBoundsWithMargins(@NonNull View view, @NonNull Rect outBounds) {
+    super.getDecoratedBoundsWithMargins(view, outBounds);
+    float centerX = outBounds.centerX();
+    float maskedSize =
+        getMaskedItemSizeForLocOffset(
+            centerX, getSurroundingKeylineRange(currentKeylineState.getKeylines(), centerX, true));
+    float delta = (outBounds.width() - maskedSize) / 2F;
+    outBounds.set(
+        (int) (outBounds.left + delta),
+        outBounds.top,
+        (int) (outBounds.right - delta),
+        outBounds.bottom);
   }
 
   private float getDecoratedCenterXWithMargins(View child) {
     Rect bounds = new Rect();
-    getDecoratedBoundsWithMargins(child, bounds);
+    super.getDecoratedBoundsWithMargins(child, bounds);
     return bounds.centerX();
   }
 
@@ -471,9 +575,16 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
    * <p>This method should be called any time a change in the scroll offset occurs.
    */
   private void updateCurrentKeylineStateForScrollOffset() {
-    this.currentKeylineState =
-        keylineStateList.getShiftedState(
-            horizontalScrollOffset, minHorizontalScroll, maxHorizontalScroll);
+    if (maxHorizontalScroll <= minHorizontalScroll) {
+      // We don't have enough items in the list to scroll and we should use the keyline state
+      // that aligns items to the start of the container.
+      this.currentKeylineState =
+          isLayoutRtl() ? keylineStateList.getRightState() : keylineStateList.getLeftState();
+    } else {
+      this.currentKeylineState =
+          keylineStateList.getShiftedState(
+              horizontalScrollOffset, minHorizontalScroll, maxHorizontalScroll);
+    }
     debugItemDecoration.setKeylines(currentKeylineState.getKeylines());
   }
 
@@ -510,8 +621,8 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
     KeylineState startState = isRtl ? stateList.getRightState() : stateList.getLeftState();
     Keyline startFocalKeyline =
         isRtl ? startState.getLastFocalKeyline() : startState.getFirstFocalKeyline();
-    float firstItemDistanceFromStart = getContainerPaddingStart() * (isRtl ? 1 : -1);
-    float firstItemStart =
+    float firstItemDistanceFromStart = getPaddingStart() * (isRtl ? 1 : -1);
+    int firstItemStart =
         addStart((int) startFocalKeyline.loc, (int) (startState.getItemSize() / 2F));
     return (int) (firstItemDistanceFromStart + getParentStart() - firstItemStart);
   }
@@ -534,6 +645,12 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
     // item hit the center of the end focal keyline.
     float endFocalLocDistanceFromStart = endFocalKeyline.loc - getParentStart();
     float endFocalLocDistanceFromEnd = getParentEnd() - endFocalKeyline.loc;
+    if (abs(endFocalLocDistanceFromStart) > abs(lastItemDistanceFromFirstItem)) {
+      // The last item comes before the last focal keyline which means all items should be within
+      // the focal range and there is nowhere to scroll.
+      return 0;
+    }
+
     return (int)
         (lastItemDistanceFromFirstItem - endFocalLocDistanceFromStart + endFocalLocDistanceFromEnd);
   }
@@ -639,6 +756,12 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
 
   @Override
   public void measureChildWithMargins(@NonNull View child, int widthUsed, int heightUsed) {
+    if (!(child instanceof Maskable)) {
+      throw new IllegalStateException(
+          "All children of a RecyclerView using CarouselLayoutManager must use MaskableFrameLayout"
+              + " as their root ViewGroup.");
+    }
+
     LayoutParams lp = (LayoutParams) child.getLayoutParams();
 
     Rect insets = new Rect();
@@ -646,8 +769,8 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
     widthUsed += insets.left + insets.right;
     heightUsed += insets.top + insets.bottom;
 
-    // If the configuration's keyline set is available, use the item size from the keyline set.
-    // Otherwise, measure the item to what it would like to be so the configuration will be given an
+    // If the strategy's keyline set is available, use the item size from the keyline set.
+    // Otherwise, measure the item to what it would like to be so the strategy will be given an
     // opportunity to use this desired size in making it's sizing decision.
     final float childWidthDimension =
         keylineStateList != null ? keylineStateList.getDefaultState().getItemSize() : lp.width;
@@ -690,26 +813,6 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
     return getWidth();
   }
 
-  @Override
-  public int getContainerPaddingStart() {
-    return getPaddingStart();
-  }
-
-  @Override
-  public int getContainerPaddingTop() {
-    return getPaddingTop();
-  }
-
-  @Override
-  public int getContainerPaddingEnd() {
-    return getPaddingEnd();
-  }
-
-  @Override
-  public int getContainerPaddingBottom() {
-    return getPaddingBottom();
-  }
-
   private boolean isLayoutRtl() {
     return getLayoutDirection() == ViewCompat.LAYOUT_DIRECTION_RTL;
   }
@@ -722,6 +825,15 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
   /** Moves {@code value} towards the end of the container by {@code amount}. */
   private int addEnd(int value, int amount) {
     return isLayoutRtl() ? value - amount : value + amount;
+  }
+
+  @Override
+  public void onInitializeAccessibilityEvent(@NonNull AccessibilityEvent event) {
+    super.onInitializeAccessibilityEvent(event);
+    if (getChildCount() > 0) {
+      event.setFromIndex(getPosition(getChildAt(0)));
+      event.setToIndex(getPosition(getChildAt(getChildCount() - 1)));
+    }
   }
 
   /**
@@ -759,6 +871,35 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
   }
 
   @Override
+  public void smoothScrollToPosition(RecyclerView recyclerView, State state, int position) {
+    LinearSmoothScroller linearSmoothScroller =
+        new LinearSmoothScroller(recyclerView.getContext()) {
+          @Nullable
+          @Override
+          public PointF computeScrollVectorForPosition(int targetPosition) {
+            if (keylineStateList == null) {
+              return null;
+            }
+
+            float targetScrollOffset =
+                getScrollOffsetForPosition(keylineStateList.getDefaultState(), targetPosition);
+            return new PointF(targetScrollOffset - horizontalScrollOffset, 0F);
+          }
+
+          @Override
+          public int calculateDxToMakeVisible(View view, int snapPreference) {
+            // Override dx calculations so the target view is brought all the way into the focal
+            // range instead of just being made visible.
+            float targetScrollOffset =
+                getScrollOffsetForPosition(keylineStateList.getDefaultState(), getPosition(view));
+            return (int) (horizontalScrollOffset - targetScrollOffset);
+          }
+        };
+    linearSmoothScroller.setTargetPosition(position);
+    startSmoothScroll(linearSmoothScroller);
+  }
+
+  @Override
   public boolean canScrollHorizontally() {
     return true;
   }
@@ -766,6 +907,30 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
   @Override
   public int scrollHorizontallyBy(int dx, Recycler recycler, State state) {
     return canScrollHorizontally() ? scrollBy(dx, recycler, state) : 0;
+  }
+
+  @Override
+  public boolean requestChildRectangleOnScreen(
+      @NonNull RecyclerView parent,
+      @NonNull View child,
+      @NonNull Rect rect,
+      boolean immediate,
+      boolean focusedChildVisible) {
+    if (keylineStateList == null) {
+      return false;
+    }
+
+    int offsetForChild =
+        getScrollOffsetForPosition(keylineStateList.getDefaultState(), getPosition(child));
+    int dx = offsetForChild - horizontalScrollOffset;
+    if (!focusedChildVisible) {
+      if (dx != 0) {
+        // TODO(b/266816148): Implement smoothScrollBy when immediate is false.
+        parent.scrollBy(dx, 0);
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -819,7 +984,7 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
    */
   private void offsetChildLeftAndRight(
       View child, float startOffset, float halfItemSize, Rect boundsRect) {
-    float centerX = addEnd((int) startOffset, (int) halfItemSize);
+    int centerX = addEnd((int) startOffset, (int) halfItemSize);
     KeylineRange range =
         getSurroundingKeylineRange(currentKeylineState.getKeylines(), centerX, false);
 
@@ -827,21 +992,65 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
     updateChildMaskForLocation(child, centerX, range);
 
     // Offset the child so its center is at offsetCx
-    getDecoratedBoundsWithMargins(child, boundsRect);
+    super.getDecoratedBoundsWithMargins(child, boundsRect);
     float actualCx = boundsRect.left + halfItemSize;
     child.offsetLeftAndRight((int) (offsetCx - actualCx));
   }
 
   /**
-   * Enables drawing that illustrates keylines and other internal concepts to help debug
-   * configurations.
+   * Calculate the offset of the horizontal scrollbar thumb within the horizontal range. This is the
+   * position of the thumb within the scrollbar track.
+   *
+   * <p>This is also used for accessibility when scrolling to give auditory feedback about the
+   * current scroll position within the total range.
+   *
+   * <p>This method can return an arbitrary unit as long as the unit is shared across {@link
+   * #computeHorizontalScrollExtent(State)} and {@link #computeHorizontalScrollRange(State)}.
+   */
+  @Override
+  public int computeHorizontalScrollOffset(@NonNull State state) {
+    return horizontalScrollOffset;
+  }
+
+  /**
+   * Compute the extent of the horizontal scrollbar thumb. This is the size of the thumb inside the
+   * scrollbar track.
+   *
+   * <p>This method can return an arbitrary unit as long as the unit is shared across {@link
+   * #computeHorizontalScrollExtent(State)} and {@link #computeHorizontalScrollOffset(State)}.
+   */
+  @Override
+  public int computeHorizontalScrollExtent(@NonNull State state) {
+    return (int) keylineStateList.getDefaultState().getItemSize();
+  }
+
+  /**
+   * Compute the horizontal range represented by the horizontal scroll bars. This is the total
+   * length of the scrollbar track within the range.
+   *
+   * <p>This method can return an arbitrary unit as long as the unit is shared across {@link
+   * #computeHorizontalScrollExtent(State)} and {@link #computeHorizontalScrollOffset(State)}.
+   */
+  @Override
+  public int computeHorizontalScrollRange(@NonNull State state) {
+    return maxHorizontalScroll - minHorizontalScroll;
+  }
+
+  /**
+   * Enables features to help debug keylines and other internal layout manager logic.
+   *
+   * <p>This will draw lines on top of the RecyclerView that show where keylines are placed for the
+   * current {@link CarouselStrategy}. Enabling debugging will also throw an exception when an
+   * invalid child order is detected (child index and adapter position are incorrectly ordered). See
+   * {@link #validateChildOrderIfDebugging()} ()} ()} for more details.
    *
    * @param recyclerView The {@link RecyclerView} this layout manager is attached to.
-   * @param enabled Whether to draw debug lines.
+   * @param enabled Whether to draw debug lines and throw on state errors.
    * @hide
    */
   @RestrictTo(Scope.LIBRARY_GROUP)
-  public void setDrawDebugEnabled(@NonNull RecyclerView recyclerView, boolean enabled) {
+  public void setDebuggingEnabled(@NonNull RecyclerView recyclerView, boolean enabled) {
+    this.isDebuggingEnabled = enabled;
     recyclerView.removeItemDecoration(debugItemDecoration);
     if (enabled) {
       recyclerView.addItemDecoration(debugItemDecoration);
@@ -869,7 +1078,7 @@ public class CarouselLayoutManager extends LayoutManager implements Carousel {
 
   /**
    * A {@link RecyclerView.ItemDecoration} that draws keylines and other information to help debug
-   * configurations.
+   * strategies.
    */
   private static class DebugItemDecoration extends RecyclerView.ItemDecoration {
 

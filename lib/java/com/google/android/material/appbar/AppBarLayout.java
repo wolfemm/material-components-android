@@ -47,8 +47,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.animation.Interpolator;
+import android.widget.AbsListView;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 import android.widget.ScrollView;
 import androidx.annotation.ColorInt;
 import androidx.annotation.Dimension;
@@ -2214,7 +2214,15 @@ public class AppBarLayout extends LinearLayout implements CoordinatorLayout.Atta
       if (forceJump || (changed && shouldJumpElevationState(parent, layout))) {
         // If the collapsed state changed, we may need to
         // jump to the current state if we have an overlapping view
-        layout.jumpDrawablesToCurrentState();
+        if (layout.getBackground() != null) {
+          layout.getBackground().jumpToCurrentState();
+        }
+        if (VERSION.SDK_INT >= VERSION_CODES.M && layout.getForeground() != null) {
+          layout.getForeground().jumpToCurrentState();
+        }
+        if (VERSION.SDK_INT >= VERSION_CODES.LOLLIPOP && layout.getStateListAnimator() != null) {
+          layout.getStateListAnimator().jumpToCurrentState();
+        }
       }
     }
 
@@ -2253,7 +2261,7 @@ public class AppBarLayout extends LinearLayout implements CoordinatorLayout.Atta
       for (int i = 0, z = parent.getChildCount(); i < z; i++) {
         final View child = parent.getChildAt(i);
         if (child instanceof NestedScrollingChild
-            || child instanceof ListView
+            || child instanceof AbsListView
             || child instanceof ScrollView) {
           return child;
         }

@@ -15,7 +15,9 @@
  */
 package com.google.android.material.carousel;
 
+import static com.google.android.material.carousel.CarouselHelper.assertChildrenHaveValidOrder;
 import static com.google.android.material.carousel.CarouselHelper.createDataSetWithSize;
+import static com.google.android.material.carousel.CarouselHelper.scrollHorizontallyBy;
 import static com.google.android.material.carousel.CarouselHelper.scrollToPosition;
 import static com.google.android.material.carousel.CarouselHelper.setAdapterItems;
 import static com.google.android.material.carousel.CarouselHelper.setViewSize;
@@ -53,40 +55,35 @@ public class CarouselLayoutManagerTest {
   @Before
   public void setUp() {
     createAndSetFixtures(DEFAULT_RECYCLER_VIEW_WIDTH, DEFAULT_ITEM_WIDTH);
+    layoutManager.setCarouselStrategy(
+        new CarouselStrategy() {
+          @Override
+          KeylineState onFirstChildMeasuredWithMargins(
+              @NonNull Carousel carousel, @NonNull View child) {
+            return getTestCenteredKeylineState();
+          }
+        });
   }
 
   @Test
   public void testAddAdapterItem_isAddedByLayoutManager() throws Throwable {
-    layoutManager.setCarouselConfiguration(
-        new CarouselConfiguration(layoutManager) {
-          @Override
-          protected KeylineState onFirstChildMeasuredWithMargins(View child) {
-            return getTestCenteredKeylineState();
-          }
-        });
     setAdapterItems(recyclerView, layoutManager, adapter, ImmutableList.of(new TestItem()));
     assertThat(recyclerView.getChildCount()).isEqualTo(1);
   }
 
   @Test
   public void testMeasureChild_usesStateItemSize() throws Throwable {
-    layoutManager.setCarouselConfiguration(
-        new CarouselConfiguration(layoutManager) {
-          @Override
-          protected KeylineState onFirstChildMeasuredWithMargins(View child) {
-            return getTestCenteredKeylineState();
-          }
-        });
     setAdapterItems(recyclerView, layoutManager, adapter, createDataSetWithSize(1));
     assertThat(recyclerView.getChildAt(0).getMeasuredWidth()).isEqualTo(DEFAULT_ITEM_WIDTH);
   }
 
   @Test
   public void testMaskedChild_isStillGivenFullWidthBounds() throws Throwable {
-    layoutManager.setCarouselConfiguration(
-        new CarouselConfiguration(layoutManager) {
+    layoutManager.setCarouselStrategy(
+        new CarouselStrategy() {
           @Override
-          protected KeylineState onFirstChildMeasuredWithMargins(View child) {
+          KeylineState onFirstChildMeasuredWithMargins(
+              @NonNull Carousel carousel, @NonNull View child) {
             return new KeylineState.Builder(DEFAULT_ITEM_WIDTH)
                 .addKeyline(225F, .5F, 225F, true)
                 .build();
@@ -101,10 +98,11 @@ public class CarouselLayoutManagerTest {
 
   @Test
   public void testMaskedChild_isMaskedToCorrectSize() throws Throwable {
-    layoutManager.setCarouselConfiguration(
-        new CarouselConfiguration(layoutManager) {
+    layoutManager.setCarouselStrategy(
+        new CarouselStrategy() {
           @Override
-          protected KeylineState onFirstChildMeasuredWithMargins(View child) {
+          KeylineState onFirstChildMeasuredWithMargins(
+              @NonNull Carousel carousel, @NonNull View child) {
             return new KeylineState.Builder(DEFAULT_ITEM_WIDTH)
                 .addKeyline(225F, .8F, 90F, true)
                 .build();
@@ -113,26 +111,19 @@ public class CarouselLayoutManagerTest {
     setAdapterItems(recyclerView, layoutManager, adapter, createDataSetWithSize(1));
 
     MaskableFrameLayout child = (MaskableFrameLayout) recyclerView.getChildAt(0);
-    assertThat(child.getMaskRect().width()).isEqualTo(450F * .2F);
+    assertThat(child.getMaskRectF().width()).isEqualTo(450F * .2F);
   }
 
   @Test
   public void testKnownArrangement_initialScrollPositionHasAllItemsWithinCarouselContainer()
       throws Throwable {
-    layoutManager.setCarouselConfiguration(
-        new CarouselConfiguration(layoutManager) {
-          @Override
-          protected KeylineState onFirstChildMeasuredWithMargins(View child) {
-            return getTestCenteredKeylineState();
-          }
-        });
     setAdapterItems(recyclerView, layoutManager, adapter, createDataSetWithSize(10));
 
     MaskableFrameLayout firstChild = (MaskableFrameLayout) recyclerView.getChildAt(0);
-    int maskLeft = (int) firstChild.getMaskRect().left;
+    int maskLeft = (int) firstChild.getMaskRectF().left;
     MaskableFrameLayout lastChild =
         (MaskableFrameLayout) recyclerView.getChildAt(recyclerView.getChildCount() - 1);
-    int maskRight = (int) (lastChild.getWidth() - lastChild.getMaskRect().right);
+    int maskRight = (int) (lastChild.getWidth() - lastChild.getMaskRectF().right);
 
     assertThat(firstChild.getLeft() + maskLeft).isEqualTo(0);
     assertThat(lastChild.getRight() - maskRight).isEqualTo(DEFAULT_RECYCLER_VIEW_WIDTH);
@@ -141,10 +132,11 @@ public class CarouselLayoutManagerTest {
   @Test
   public void testScrollToPosition_movesChildToFocalStartKeyline() throws Throwable {
     KeylineState keylineState = getTestCenteredKeylineState();
-    layoutManager.setCarouselConfiguration(
-        new CarouselConfiguration(layoutManager) {
+    layoutManager.setCarouselStrategy(
+        new CarouselStrategy() {
           @Override
-          protected KeylineState onFirstChildMeasuredWithMargins(View child) {
+          KeylineState onFirstChildMeasuredWithMargins(
+              @NonNull Carousel carousel, @NonNull View child) {
             return keylineState;
           }
         });
@@ -161,10 +153,11 @@ public class CarouselLayoutManagerTest {
   @Test
   public void testScrollBeyondMaxHorizontalScroll_shouldLimitToMaxScrollOffset() throws Throwable {
     KeylineState keylineState = getTestCenteredKeylineState();
-    layoutManager.setCarouselConfiguration(
-        new CarouselConfiguration(layoutManager) {
+    layoutManager.setCarouselStrategy(
+        new CarouselStrategy() {
           @Override
-          protected KeylineState onFirstChildMeasuredWithMargins(View child) {
+          KeylineState onFirstChildMeasuredWithMargins(
+              @NonNull Carousel carousel, @NonNull View child) {
             return keylineState;
           }
         });
@@ -181,13 +174,6 @@ public class CarouselLayoutManagerTest {
 
   @Test
   public void testInitialFill_shouldFillMinimumItemCountForContainer() throws Throwable {
-    layoutManager.setCarouselConfiguration(
-        new CarouselConfiguration(layoutManager) {
-          @Override
-          protected KeylineState onFirstChildMeasuredWithMargins(@NonNull View child) {
-            return getTestCenteredKeylineState();
-          }
-        });
     setAdapterItems(recyclerView, layoutManager, adapter, createDataSetWithSize(200));
 
     assertThat(recyclerView.getChildCount()).isEqualTo(11);
@@ -196,13 +182,6 @@ public class CarouselLayoutManagerTest {
   @Test
   public void testScrollAndFill_shouldRecycleAndFillMinimumItemCountForContainer()
       throws Throwable {
-    layoutManager.setCarouselConfiguration(
-        new CarouselConfiguration(layoutManager) {
-          @Override
-          protected KeylineState onFirstChildMeasuredWithMargins(@NonNull View child) {
-            return getTestCenteredKeylineState();
-          }
-        });
     setAdapterItems(recyclerView, layoutManager, adapter, createDataSetWithSize(200));
     scrollToPosition(recyclerView, layoutManager, 100);
 
@@ -211,14 +190,6 @@ public class CarouselLayoutManagerTest {
 
   @Test
   public void testEmptyAdapter_shouldClearAllViewsFromRecyclerView() throws Throwable {
-    layoutManager.setCarouselConfiguration(
-        new CarouselConfiguration(layoutManager) {
-          @Override
-          protected KeylineState onFirstChildMeasuredWithMargins(@NonNull View child) {
-            return getTestCenteredKeylineState();
-          }
-        });
-
     // Fill the adapter and then empty it to make sure all views are removed and recycled
     setAdapterItems(
         recyclerView, layoutManager, adapter, CarouselHelper.createDataSetWithSize(200));
@@ -226,6 +197,66 @@ public class CarouselLayoutManagerTest {
     setAdapterItems(recyclerView, layoutManager, adapter, createDataSetWithSize(0));
 
     assertThat(recyclerView.getChildCount()).isEqualTo(0);
+  }
+
+  @Test
+  public void testSingleItem_shouldBeInFocalRange() throws Throwable {
+    setAdapterItems(recyclerView, layoutManager, adapter, CarouselHelper.createDataSetWithSize(1));
+
+    assertThat(((Maskable) recyclerView.getChildAt(0)).getMaskXPercentage()).isEqualTo(0F);
+  }
+
+  @Test
+  public void testSingleItem_shouldNotScrollLeft() throws Throwable {
+    setAdapterItems(recyclerView, layoutManager, adapter, CarouselHelper.createDataSetWithSize(1));
+    scrollHorizontallyBy(recyclerView, layoutManager, 100);
+
+    assertThat(recyclerView.getChildAt(0).getLeft()).isEqualTo(0);
+  }
+
+  @Test
+  public void testSingleItem_shouldNotScrollRight() throws Throwable {
+    setAdapterItems(recyclerView, layoutManager, adapter, CarouselHelper.createDataSetWithSize(1));
+    scrollHorizontallyBy(recyclerView, layoutManager, -100);
+
+    assertThat(recyclerView.getChildAt(0).getLeft()).isEqualTo(0);
+  }
+
+  @Test
+  public void testChangeAdapterItemCount_shouldAlignFirstItemToStart() throws Throwable {
+    setAdapterItems(
+        recyclerView, layoutManager, adapter, CarouselHelper.createDataSetWithSize(200));
+    scrollToPosition(recyclerView, layoutManager, 100);
+    setAdapterItems(recyclerView, layoutManager, adapter, createDataSetWithSize(1));
+
+    assertThat(recyclerView.getChildCount()).isEqualTo(1);
+    assertThat(recyclerView.getChildAt(0).getLeft()).isEqualTo(0);
+  }
+
+  @Test
+  public void testScrollToEnd_childrenHaveValidOrder() throws Throwable {
+    setAdapterItems(recyclerView, layoutManager, adapter, CarouselHelper.createDataSetWithSize(10));
+    scrollToPosition(recyclerView, layoutManager, 9);
+
+    assertChildrenHaveValidOrder(layoutManager);
+  }
+
+  @Test
+  public void testScrollToMiddle_childrenHaveValidOrder() throws Throwable {
+    setAdapterItems(
+        recyclerView, layoutManager, adapter, CarouselHelper.createDataSetWithSize(200));
+    scrollToPosition(recyclerView, layoutManager, 99);
+
+    assertChildrenHaveValidOrder(layoutManager);
+  }
+
+  @Test
+  public void testScrollToEndThenToStart_childrenHaveValidOrder() throws Throwable {
+    setAdapterItems(recyclerView, layoutManager, adapter, CarouselHelper.createDataSetWithSize(10));
+    scrollToPosition(recyclerView, layoutManager, 9);
+    scrollToPosition(recyclerView, layoutManager, 2);
+
+    assertChildrenHaveValidOrder(layoutManager);
   }
 
   /**

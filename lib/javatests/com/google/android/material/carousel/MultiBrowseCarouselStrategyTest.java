@@ -29,46 +29,45 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 
-/** Tests for {@link StartCarouselConfiguration}. */
+/** Tests for {@link MultiBrowseCarouselStrategy}. */
 @RunWith(RobolectricTestRunner.class)
-public class StartCarouselConfigurationTest {
+public class MultiBrowseCarouselStrategyTest {
 
   @Test
   public void testOnFirstItemMeasuredWithMargins_createsKeylineStateWithCorrectItemSize() {
-    StartCarouselConfiguration config =
-        new StartCarouselConfiguration(createCarouselWithWidth(2470));
+    MultiBrowseCarouselStrategy config = new MultiBrowseCarouselStrategy();
     View view = createViewWithSize(450, 450);
 
-    KeylineState keylineState = config.onFirstChildMeasuredWithMargins(view);
+    KeylineState keylineState =
+        config.onFirstChildMeasuredWithMargins(createCarouselWithWidth(2470), view);
     assertThat(keylineState.getItemSize()).isEqualTo(450F);
   }
 
   @Test
   public void testItemLargerThanContainer_resizesToFit() {
-    StartCarouselConfiguration config =
-        new StartCarouselConfiguration(createCarouselWithWidth(100));
+    MultiBrowseCarouselStrategy config = new MultiBrowseCarouselStrategy();
     View view = createViewWithSize(400, 400);
 
-    KeylineState keylineState = config.onFirstChildMeasuredWithMargins(view);
+    KeylineState keylineState =
+        config.onFirstChildMeasuredWithMargins(createCarouselWithWidth(100), view);
     assertThat(keylineState.getItemSize()).isAtMost(100F);
   }
 
   @Test
   public void testItemLargerThanContainerSize_defaultsToFullscreen() {
     Carousel carousel = createCarouselWithWidth(100);
-    StartCarouselConfiguration config = new StartCarouselConfiguration(carousel);
+    MultiBrowseCarouselStrategy config = new MultiBrowseCarouselStrategy();
     View view = createViewWithSize(400, 400);
 
-    KeylineState keylineState = config.onFirstChildMeasuredWithMargins(view);
+    KeylineState keylineState = config.onFirstChildMeasuredWithMargins(carousel, view);
 
     // A fullscreen layout should be [collapsed-expanded-collapsed] where the collapsed items are
     // outside the bounds of the carousel container and the expanded center item takes up the
     // containers full width.
     assertThat(keylineState.getKeylines()).hasSize(3);
-    assertThat(keylineState.getKeylines().get(0).locOffset)
-        .isLessThan((float) carousel.getContainerPaddingStart());
+    assertThat(keylineState.getKeylines().get(0).locOffset).isLessThan(0F);
     assertThat(Iterables.getLast(keylineState.getKeylines()).locOffset)
-        .isGreaterThan((float) (carousel.getContainerWidth() - carousel.getContainerPaddingEnd()));
+        .isGreaterThan((float) carousel.getContainerWidth());
     assertThat(keylineState.getKeylines().get(1).mask).isEqualTo(0F);
   }
 
@@ -76,11 +75,11 @@ public class StartCarouselConfigurationTest {
   public void testKnownArrangement_correctlyCalculatesKeylineLocations() {
     float[] locOffsets = new float[] {-.5F, 225F, 675F, 942F, 1012F, 1040.5F};
 
-    StartCarouselConfiguration config =
-        new StartCarouselConfiguration(createCarouselWithWidth(1040));
+    MultiBrowseCarouselStrategy config = new MultiBrowseCarouselStrategy();
     View view = createViewWithSize(450, 450);
 
-    List<Keyline> keylines = config.onFirstChildMeasuredWithMargins(view).getKeylines();
+    List<Keyline> keylines =
+        config.onFirstChildMeasuredWithMargins(createCarouselWithWidth(1040), view).getKeylines();
     for (int i = 0; i < keylines.size(); i++) {
       assertThat(keylines.get(i).locOffset).isEqualTo(locOffsets[i]);
     }

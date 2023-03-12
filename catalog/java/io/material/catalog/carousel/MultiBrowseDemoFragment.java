@@ -23,15 +23,21 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AutoCompleteTextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.google.android.material.carousel.CarouselLayoutManager;
-import com.google.android.material.carousel.StartCarouselConfiguration;
+import com.google.android.material.carousel.MultiBrowseCarouselStrategy;
+import com.google.android.material.divider.MaterialDividerItemDecoration;
 import com.google.android.material.materialswitch.MaterialSwitch;
+import com.google.android.material.slider.Slider;
+import com.google.android.material.slider.Slider.OnSliderTouchListener;
 import io.material.catalog.feature.DemoFragment;
 
 /** A fragment that displays the multi-browse variants of the Carousel. */
 public class MultiBrowseDemoFragment extends DemoFragment {
+
+  private MaterialDividerItemDecoration horizontalDivider;
 
   @NonNull
   @Override
@@ -48,16 +54,21 @@ public class MultiBrowseDemoFragment extends DemoFragment {
   public void onViewCreated(@NonNull View view, @Nullable Bundle bundle) {
     super.onViewCreated(view, bundle);
 
+    horizontalDivider =
+        new MaterialDividerItemDecoration(
+            requireContext(), MaterialDividerItemDecoration.HORIZONTAL);
+
     MaterialSwitch debugSwitch = view.findViewById(R.id.debug_switch);
     MaterialSwitch forceCompactSwitch = view.findViewById(R.id.force_compact_arrangement_switch);
+    MaterialSwitch drawDividers = view.findViewById(R.id.draw_dividers_switch);
+    AutoCompleteTextView itemCountDropdown = view.findViewById(R.id.item_count_dropdown);
+    Slider positionSlider = view.findViewById(R.id.position_slider);
 
     // A start-aligned multi-browse carousel
     RecyclerView multiBrowseStartRecyclerView =
         view.findViewById(R.id.multi_browse_start_carousel_recycler_view);
     CarouselLayoutManager multiBrowseStartCarouselLayoutManager = new CarouselLayoutManager();
-    multiBrowseStartCarouselLayoutManager.setCarouselConfiguration(
-        new StartCarouselConfiguration(multiBrowseStartCarouselLayoutManager));
-    multiBrowseStartCarouselLayoutManager.setDrawDebugEnabled(
+    multiBrowseStartCarouselLayoutManager.setDebuggingEnabled(
         multiBrowseStartRecyclerView, debugSwitch.isChecked());
     multiBrowseStartRecyclerView.setLayoutManager(multiBrowseStartCarouselLayoutManager);
     multiBrowseStartRecyclerView.setNestedScrollingEnabled(false);
@@ -66,20 +77,61 @@ public class MultiBrowseDemoFragment extends DemoFragment {
         (buttonView, isChecked) -> {
           multiBrowseStartRecyclerView.setBackgroundResource(
               isChecked ? R.drawable.dashed_outline_rectangle : 0);
-          multiBrowseStartCarouselLayoutManager.setDrawDebugEnabled(
+          multiBrowseStartCarouselLayoutManager.setDebuggingEnabled(
               multiBrowseStartRecyclerView, isChecked);
         });
 
     forceCompactSwitch.setOnCheckedChangeListener(
         (buttonView, isChecked) ->
-            multiBrowseStartCarouselLayoutManager.setCarouselConfiguration(
-                new StartCarouselConfiguration(multiBrowseStartCarouselLayoutManager, isChecked)));
+            multiBrowseStartCarouselLayoutManager.setCarouselStrategy(
+                new MultiBrowseCarouselStrategy(isChecked)));
+
+    drawDividers.setOnCheckedChangeListener(
+        (buttonView, isChecked) -> {
+          if (isChecked) {
+            multiBrowseStartRecyclerView.addItemDecoration(horizontalDivider);
+          } else {
+            multiBrowseStartRecyclerView.removeItemDecoration(horizontalDivider);
+          }
+        });
 
     CarouselAdapter adapter =
         new CarouselAdapter(
             (item, position) -> multiBrowseStartRecyclerView.scrollToPosition(position));
 
+    itemCountDropdown.setOnItemClickListener(
+        (parent, view1, position, id) -> {
+          adapter.submitList(
+              CarouselData.createItems().subList(0, position),
+              updateSliderRange(positionSlider, adapter));
+        });
+
+    positionSlider.addOnSliderTouchListener(
+        new OnSliderTouchListener() {
+          @Override
+          public void onStartTrackingTouch(@NonNull Slider slider) {}
+
+          @Override
+          public void onStopTrackingTouch(@NonNull Slider slider) {
+            multiBrowseStartRecyclerView.smoothScrollToPosition((int) slider.getValue() - 1);
+          }
+        });
+
     multiBrowseStartRecyclerView.setAdapter(adapter);
-    adapter.submitList(CarouselData.createItems());
+    adapter.submitList(CarouselData.createItems(), updateSliderRange(positionSlider, adapter));
+  }
+
+  private static Runnable updateSliderRange(Slider slider, CarouselAdapter adapter) {
+    return () -> {
+      if (adapter.getItemCount() == 0) {
+        slider.setValueFrom(0);
+        slider.setValueTo(0);
+        return;
+      }
+
+      slider.setValue(1);
+      slider.setValueFrom(1);
+      slider.setValueTo(adapter.getItemCount());
+    };
   }
 }

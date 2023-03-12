@@ -36,8 +36,6 @@ import androidx.annotation.RequiresApi;
 import androidx.core.math.MathUtils;
 import com.google.android.material.animation.AnimationUtils;
 import com.google.android.material.shape.ShapeAppearanceModel;
-import java.util.ArrayList;
-import java.util.List;
 
 /** A {@link FrameLayout} than is able to mask itself and all children. */
 public class MaskableFrameLayout extends FrameLayout implements Maskable {
@@ -46,7 +44,7 @@ public class MaskableFrameLayout extends FrameLayout implements Maskable {
   private final RectF maskRect = new RectF();
   private final Path maskPath = new Path();
 
-  private final List<OnMaskChangedListener> onMaskChangedListeners = new ArrayList<>();
+  @Nullable private OnMaskChangedListener onMaskChangedListener;
 
   private final ShapeAppearanceModel shapeAppearanceModel;
 
@@ -73,6 +71,11 @@ public class MaskableFrameLayout extends FrameLayout implements Maskable {
     onMaskChanged();
   }
 
+  /**
+   * Sets the percentage by which this {@link View} masks by along the x axis.
+   *
+   * @param percentage 0 when this view is fully unmasked. 1 when this view is fully masked.
+   */
   @Override
   public void setMaskXPercentage(float percentage) {
     percentage = MathUtils.clamp(percentage, 0F, 1F);
@@ -82,25 +85,26 @@ public class MaskableFrameLayout extends FrameLayout implements Maskable {
     }
   }
 
+  /**
+   * Gets the percentage by which this {@link View} is masked by along the x axis.
+   *
+   * @return a float between 0 and 1 where 0 is fully unmasked and 1 is fully masked.
+   */
   @Override
   public float getMaskXPercentage() {
     return maskXPercentage;
   }
 
+  /** Gets a {@link RectF} that this {@link View} is masked itself by. */
   @NonNull
   @Override
-  public RectF getMaskRect() {
+  public RectF getMaskRectF() {
     return maskRect;
   }
 
   @Override
-  public void addOnMaskChangedListener(@NonNull OnMaskChangedListener listener) {
-    onMaskChangedListeners.add(listener);
-  }
-
-  @Override
-  public void removeOnMaskChangedListener(@NonNull OnMaskChangedListener listener) {
-    onMaskChangedListeners.remove(listener);
+  public void setOnMaskChangedListener(@Nullable OnMaskChangedListener onMaskChangedListener) {
+    this.onMaskChangedListener = onMaskChangedListener;
   }
 
   private void onMaskChanged() {
@@ -111,8 +115,8 @@ public class MaskableFrameLayout extends FrameLayout implements Maskable {
     // masked away.
     float maskWidth = AnimationUtils.lerp(0f, getWidth() / 2F, 0f, 1f, maskXPercentage);
     maskRect.set(maskWidth, 0F, (getWidth() - maskWidth), getHeight());
-    for (OnMaskChangedListener listener : onMaskChangedListeners) {
-      listener.onMaskChanged(maskRect);
+    if (onMaskChangedListener != null) {
+      onMaskChangedListener.onMaskChanged(maskRect);
     }
     refreshMaskPath();
   }
@@ -167,7 +171,7 @@ public class MaskableFrameLayout extends FrameLayout implements Maskable {
           new ViewOutlineProvider() {
             @Override
             public void getOutline(View view, Outline outline) {
-              RectF maskRect = ((MaskableFrameLayout) view).getMaskRect();
+              RectF maskRect = ((MaskableFrameLayout) view).getMaskRectF();
               float cornerSize = ((MaskableFrameLayout) view).getCornerRadiusFromShapeAppearance();
               if (!maskRect.isEmpty()) {
                 outline.setRoundRect(

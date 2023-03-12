@@ -21,26 +21,6 @@
     android:layout_width="match_parent"
     android:orientation="vertical">
 
-    <com.google.android.material.materialswitch.MaterialSwitch
-      android:id="@+id/debug_switch"
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      android:checked="false"
-      android:layout_marginHorizontal="16dp"
-      android:layout_marginVertical="8dp"
-      android:textAppearance="?attr/textAppearanceBodyLarge"
-      android:text="@string/cat_carousel_draw_debug_switch_label"/>
-
-    <com.google.android.material.materialswitch.MaterialSwitch
-      android:id="@+id/force_compact_arrangement_switch"
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      android:checked="false"
-      android:layout_marginHorizontal="16dp"
-      android:layout_marginVertical="8dp"
-      android:textAppearance="?attr/textAppearanceBodyLarge"
-      android:text="@string/cat_carousel_force_compact_arrangement_label"/>
-
     <TextView
       android:id="@+id/multi_browse_title_text_view"
       android:layout_width="wrap_content"
@@ -59,14 +39,80 @@
       android:text="@string/cat_carousel_multi_browse_desc"
       android:textAppearance="?attr/textAppearanceBodyMedium" />
 
+    <com.google.android.material.materialswitch.MaterialSwitch
+      android:id="@+id/debug_switch"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:checked="false"
+      android:layout_marginHorizontal="16dp"
+      android:layout_marginVertical="8dp"
+      android:textAppearance="?attr/textAppearanceBodyLarge"
+      android:text="@string/cat_carousel_debug_mode_label"/>
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+      android:id="@+id/force_compact_arrangement_switch"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:checked="false"
+      android:layout_marginHorizontal="16dp"
+      android:layout_marginVertical="8dp"
+      android:textAppearance="?attr/textAppearanceBodyLarge"
+      android:text="@string/cat_carousel_force_compact_arrangement_label"/>
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+      android:id="@+id/draw_dividers_switch"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:checked="false"
+      android:layout_marginHorizontal="16dp"
+      android:layout_marginVertical="8dp"
+      android:textAppearance="?attr/textAppearanceBodyLarge"
+      android:text="@string/cat_carousel_draw_dividers_label"/>
+
+    <com.google.android.material.textfield.TextInputLayout
+      style="?attr/textInputFilledExposedDropdownMenuStyle"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_gravity="center_vertical"
+      android:layout_marginHorizontal="16dp"
+      android:layout_marginVertical="8dp"
+      app:helperTextEnabled="false">
+
+      <AutoCompleteTextView
+        android:id="@+id/item_count_dropdown"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="none"
+        android:hint="@string/cat_carousel_adapter_item_count_hint_label"
+        app:simpleItems="@array/cat_carousel_adapter_count_content"/>
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <TextView
+      android:id="@+id/position_slider_label"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginHorizontal="16dp"
+      android:layout_marginTop="16dp"
+      android:labelFor="@id/position_slider"
+      android:text="@string/cat_carousel_position_slider_label"
+      android:textAppearance="?attr/textAppearanceBodyLarge"/>
+
+    <com.google.android.material.slider.Slider
+      android:id="@+id/position_slider"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginHorizontal="16dp"
+      android:layout_marginBottom="8dp"
+      android:contentDescription="@string/cat_carousel_position_slider_content_description"
+      android:stepSize="1.0"/>
+
     <androidx.recyclerview.widget.RecyclerView
       android:id="@+id/multi_browse_start_carousel_recycler_view"
       android:layout_width="match_parent"
       android:layout_height="196dp"
       android:layout_marginHorizontal="16dp"
       android:layout_marginVertical="16dp"
-      android:paddingStart="70dp"
-      android:paddingEnd="24dp"
       android:clipChildren="false"
       android:clipToPadding="false" />
 

@@ -15,6 +15,7 @@
  */
 package com.google.android.material.carousel;
 
+import static com.google.common.truth.Truth.assertWithMessage;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import android.graphics.Color;
@@ -38,6 +39,29 @@ import org.hamcrest.MatcherAssert;
 class CarouselHelper {
 
   private CarouselHelper() {}
+
+
+  /** Ensure that as child index increases, adapter position also increases. */
+  static void assertChildrenHaveValidOrder(WrappedCarouselLayoutManager layoutManager) {
+    // CarouselLayoutManager keeps track of internal start position state and should always have
+    // an accurate ordering where adapter position increases as child index increases.
+    for (int i = 0; i < layoutManager.getChildCount() - 1; i++) {
+      int currentAdapterPosition = layoutManager.getPosition(layoutManager.getChildAt(i));
+      int nextAdapterPosition = layoutManager.getPosition(layoutManager.getChildAt(i + 1));
+      assertWithMessage(
+          "Child at index "
+              + i
+              + " had a greater adapter position ["
+              + currentAdapterPosition
+              + "] than child at index "
+              + (i + 1)
+              + " ["
+              + nextAdapterPosition
+              + "]")
+          .that(currentAdapterPosition)
+          .isLessThan(nextAdapterPosition);
+    }
+  }
 
   /**
    * Explicitly set a view's size.
@@ -84,6 +108,14 @@ class CarouselHelper {
     layoutManager.waitForLayout(3L);
   }
 
+  static void scrollHorizontallyBy(
+      RecyclerView recyclerView, WrappedCarouselLayoutManager layoutManager, int dx)
+      throws Throwable {
+    layoutManager.expectScrolls(1);
+    recyclerView.scrollBy(dx, 0);
+    layoutManager.waitForScroll(3L);
+  }
+
   /**
    * Handles setting the items of the adapter and waiting until the recycler view has made a layout
    * pass.
@@ -110,26 +142,6 @@ class CarouselHelper {
       @Override
       public int getContainerWidth() {
         return width;
-      }
-
-      @Override
-      public int getContainerPaddingStart() {
-        return 0;
-      }
-
-      @Override
-      public int getContainerPaddingTop() {
-        return 0;
-      }
-
-      @Override
-      public int getContainerPaddingEnd() {
-        return 0;
-      }
-
-      @Override
-      public int getContainerPaddingBottom() {
-        return 0;
       }
     };
   }
@@ -214,6 +226,7 @@ class CarouselHelper {
 
     WrappedCarouselLayoutManager() {}
 
+    CountDownLatch scrollLatch;
     CountDownLatch layoutLatch;
 
     /**
@@ -226,14 +239,30 @@ class CarouselHelper {
       layoutLatch = new CountDownLatch(count);
     }
 
+    void expectScrolls(int count) {
+      scrollLatch = new CountDownLatch(count);
+    }
+
     /**
      * Tells an active layout {@link CountDownLatch} to wait a number of seconds for its release
      * until throwing.
      */
     void waitForLayout(long seconds) throws Throwable {
-      layoutLatch.await(seconds, SECONDS);
+      waitForLatch(layoutLatch, seconds, "layout");
+    }
+
+    /**
+     * Tells an active scroll {@link CountDownLatch} to wait a number of seconds for its release
+     * until throwing.
+     */
+    void waitForScroll(long seconds) throws Throwable {
+      waitForLatch(scrollLatch, seconds, "scroll");
+    }
+
+    private void waitForLatch(CountDownLatch latch, long seconds, String tag) throws Throwable {
+      latch.await(seconds, SECONDS);
       MatcherAssert.assertThat(
-          "all layouts should complete on time", layoutLatch.getCount(), CoreMatchers.is(0L));
+          "all " + tag + "s should complete on time", latch.getCount(), CoreMatchers.is(0L));
       // use a runnable to ensure RV layout is finished
       InstrumentationRegistry.getInstrumentation()
           .runOnMainSync(
@@ -247,6 +276,13 @@ class CarouselHelper {
     public void onLayoutChildren(Recycler recycler, State state) {
       super.onLayoutChildren(recycler, state);
       layoutLatch.countDown();
+    }
+
+    @Override
+    public int scrollHorizontallyBy(int dx, Recycler recycler, State state) {
+      int scroll = super.scrollHorizontallyBy(dx, recycler, state);
+      scrollLatch.countDown();
+      return scroll;
     }
   }
 }
