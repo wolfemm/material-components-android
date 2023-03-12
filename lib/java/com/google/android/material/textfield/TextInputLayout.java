@@ -3266,6 +3266,16 @@ public class TextInputLayout extends LinearLayout {
   }
 
   /**
+   * Sets the start icon's functionality that is performed when the start icon is touched.
+   *
+   * @param startIconOnTouchListener the {@link android.view.View.OnTouchListener} the start icon
+   *     view will have, or null to clear it.
+   */
+  public void setStartIconOnTouchListener(@Nullable OnTouchListener startIconOnTouchListener) {
+    startLayout.setStartIconOnTouchListener(startIconOnTouchListener);
+  }
+
+  /**
    * Sets the start icon's functionality that is performed when the start icon is long clicked. The
    * icon will not be clickable if its click and long click listeners are null.
    *
@@ -3425,6 +3435,16 @@ public class TextInputLayout extends LinearLayout {
    */
   public void setEndIconOnClickListener(@Nullable OnClickListener endIconOnClickListener) {
     endLayout.setEndIconOnClickListener(endIconOnClickListener);
+  }
+
+  /**
+   * Sets the end icon's functionality that is performed when the end icon is touched.
+   *
+   * @param endIconOnTouchListener the {@link android.view.View.OnTouchListener} the end icon
+   *     view will have, or null to clear it.
+   */
+  public void setEndIconOnTouchListener(@Nullable OnTouchListener endIconOnTouchListener) {
+    endLayout.setEndIconOnTouchListener(endIconOnTouchListener);
   }
 
   /**

@@ -25,6 +25,7 @@ import static com.google.android.material.textfield.IconHelper.setCompatRippleBa
 import static com.google.android.material.textfield.IconHelper.setIconMinSize;
 import static com.google.android.material.textfield.IconHelper.setIconOnClickListener;
 import static com.google.android.material.textfield.IconHelper.setIconOnLongClickListener;
+import static com.google.android.material.textfield.IconHelper.setIconOnTouchListener;
 import static com.google.android.material.textfield.IconHelper.setIconScaleType;
 import static com.google.android.material.textfield.TextInputLayout.END_ICON_CLEAR_TEXT;
 import static com.google.android.material.textfield.TextInputLayout.END_ICON_CUSTOM;
@@ -101,6 +102,8 @@ class EndCompoundLayout extends LinearLayout {
   private int endIconMinSize;
   @NonNull private ScaleType endIconScaleType;
   private OnLongClickListener endIconOnLongClickListener;
+
+  private OnTouchListener endIconOnTouchListener;
 
   @Nullable private CharSequence suffixText;
   @NonNull private final TextView suffixTextView;
@@ -340,7 +343,7 @@ class EndCompoundLayout extends LinearLayout {
   }
 
   void setErrorIconOnClickListener(@Nullable OnClickListener errorIconOnClickListener) {
-    setIconOnClickListener(errorIconView, errorIconOnClickListener, errorIconOnLongClickListener);
+    setIconOnClickListener(errorIconView, errorIconOnClickListener, endIconOnTouchListener, errorIconOnLongClickListener);
   }
 
   CheckableImageButton getEndIconView() {
@@ -444,19 +447,23 @@ class EndCompoundLayout extends LinearLayout {
   }
 
   void setEndIconOnClickListener(@Nullable OnClickListener endIconOnClickListener) {
-    setIconOnClickListener(endIconView, endIconOnClickListener, endIconOnLongClickListener);
+    setIconOnClickListener(endIconView, endIconOnClickListener, endIconOnTouchListener, endIconOnLongClickListener);
   }
 
-  void setEndIconOnLongClickListener(
-      @Nullable OnLongClickListener endIconOnLongClickListener) {
+  void setEndIconOnTouchListener(@Nullable OnTouchListener endIconOnTouchListener) {
+    this.endIconOnTouchListener = endIconOnTouchListener;
+    setIconOnTouchListener(endIconView, endIconOnTouchListener, endIconOnLongClickListener);
+  }
+
+  void setEndIconOnLongClickListener(@Nullable OnLongClickListener endIconOnLongClickListener) {
     this.endIconOnLongClickListener = endIconOnLongClickListener;
-    setIconOnLongClickListener(endIconView, endIconOnLongClickListener);
+    setIconOnLongClickListener(endIconView, endIconOnTouchListener, endIconOnLongClickListener);
   }
 
   void setErrorIconOnLongClickListener(
       @Nullable OnLongClickListener errorIconOnLongClickListener) {
     this.errorIconOnLongClickListener = errorIconOnLongClickListener;
-    setIconOnLongClickListener(errorIconView, errorIconOnLongClickListener);
+    setIconOnLongClickListener(errorIconView, endIconOnTouchListener, errorIconOnLongClickListener);
   }
 
   private void setOnFocusChangeListenersIfNeeded(EndIconDelegate delegate) {

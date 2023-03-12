@@ -23,6 +23,7 @@ import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
+import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnLongClickListener;
 import android.widget.ImageView;
@@ -42,20 +43,37 @@ class IconHelper {
   static void setIconOnClickListener(
       @NonNull CheckableImageButton iconView,
       @Nullable OnClickListener onClickListener,
+      @Nullable View.OnTouchListener onTouchListener,
       @Nullable OnLongClickListener onLongClickListener) {
     iconView.setOnClickListener(onClickListener);
-    setIconClickable(iconView, onLongClickListener);
+    setIconClickable(iconView, onTouchListener, onLongClickListener);
   }
 
   static void setIconOnLongClickListener(
-      @NonNull CheckableImageButton iconView, @Nullable OnLongClickListener onLongClickListener) {
+      @NonNull CheckableImageButton iconView,
+      @Nullable View.OnTouchListener onTouchListener,
+      @Nullable OnLongClickListener onLongClickListener
+  ) {
     iconView.setOnLongClickListener(onLongClickListener);
-    setIconClickable(iconView, onLongClickListener);
+    setIconClickable(iconView, onTouchListener, onLongClickListener);
+  }
+
+  static void setIconOnTouchListener(
+      @NonNull CheckableImageButton iconView,
+      @Nullable View.OnTouchListener onTouchListener,
+      @Nullable OnLongClickListener onLongClickListener
+  ) {
+    iconView.setOnTouchListener(onTouchListener);
+    setIconClickable(iconView, onTouchListener, onLongClickListener);
   }
 
   private static void setIconClickable(
-      @NonNull CheckableImageButton iconView, @Nullable OnLongClickListener onLongClickListener) {
-    boolean iconClickable = ViewCompat.hasOnClickListeners(iconView);
+      @NonNull CheckableImageButton iconView,
+      @Nullable View.OnTouchListener onTouchListener,
+      @Nullable OnLongClickListener onLongClickListener
+  ) {
+    boolean iconTouchable = onTouchListener != null;
+    boolean iconClickable = ViewCompat.hasOnClickListeners(iconView) || iconTouchable;
     boolean iconLongClickable = onLongClickListener != null;
     boolean iconFocusable = iconClickable || iconLongClickable;
     iconView.setFocusable(iconFocusable);

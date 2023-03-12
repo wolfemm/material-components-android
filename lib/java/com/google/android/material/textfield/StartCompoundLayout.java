@@ -25,6 +25,7 @@ import static com.google.android.material.textfield.IconHelper.setCompatRippleBa
 import static com.google.android.material.textfield.IconHelper.setIconMinSize;
 import static com.google.android.material.textfield.IconHelper.setIconOnClickListener;
 import static com.google.android.material.textfield.IconHelper.setIconOnLongClickListener;
+import static com.google.android.material.textfield.IconHelper.setIconOnTouchListener;
 import static com.google.android.material.textfield.IconHelper.setIconScaleType;
 
 import android.annotation.SuppressLint;
@@ -73,6 +74,8 @@ class StartCompoundLayout extends LinearLayout {
   private int startIconMinSize;
   @NonNull private ScaleType startIconScaleType;
   private OnLongClickListener startIconOnLongClickListener;
+
+  private OnTouchListener startIconOnTouchListener;
 
   private boolean hintExpanded;
 
@@ -221,13 +224,18 @@ class StartCompoundLayout extends LinearLayout {
   }
 
   void setStartIconOnClickListener(@Nullable OnClickListener startIconOnClickListener) {
-    setIconOnClickListener(startIconView, startIconOnClickListener, startIconOnLongClickListener);
+    setIconOnClickListener(startIconView, startIconOnClickListener, startIconOnTouchListener, startIconOnLongClickListener);
+  }
+
+  void setStartIconOnTouchListener(@Nullable OnTouchListener startIconOnTouchListener) {
+    this.startIconOnTouchListener = startIconOnTouchListener;
+    setIconOnTouchListener(startIconView, startIconOnTouchListener, startIconOnLongClickListener);
   }
 
   void setStartIconOnLongClickListener(
       @Nullable OnLongClickListener startIconOnLongClickListener) {
     this.startIconOnLongClickListener = startIconOnLongClickListener;
-    setIconOnLongClickListener(startIconView, startIconOnLongClickListener);
+    setIconOnLongClickListener(startIconView, startIconOnTouchListener, startIconOnLongClickListener);
   }
 
   void setStartIconVisible(boolean visible) {
