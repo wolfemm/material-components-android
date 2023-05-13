@@ -43,11 +43,15 @@ import org.robolectric.annotation.internal.DoNotInstrument;
 @DoNotInstrument
 public class BadgeDrawableTest {
 
+  private static final String TEST_BADGE_TEXT = "Test";
   private static final int TEST_BADGE_NUMBER = 26;
   private static final Locale TEST_BADGE_NUMBER_LOCALE = new Locale("ar");
 
   private static final int TEST_BADGE_HORIZONTAL_OFFSET = 10;
   private static final int TEST_BADGE_VERTICAL_OFFSET = 5;
+
+  private static final int TEST_BADGE_HORIZONTAL_PADDING = 10;
+  private static final int TEST_BADGE_VERTICAL_PADDING = 10;
 
   private final Context context = ApplicationProvider.getApplicationContext();
 
@@ -65,8 +69,12 @@ public class BadgeDrawableTest {
         ResourcesCompat.getColor(context.getResources(), android.R.color.white, context.getTheme());
     BadgeDrawable badgeDrawable = BadgeDrawable.create(context);
     BadgeState.State drawableState = badgeDrawable.getSavedState();
+    badgeDrawable.setText(TEST_BADGE_TEXT);
     badgeDrawable.setNumber(TEST_BADGE_NUMBER);
     badgeDrawable.setBadgeGravity(BadgeDrawable.TOP_START);
+
+    badgeDrawable.setHorizontalPadding(TEST_BADGE_HORIZONTAL_PADDING);
+    badgeDrawable.setVerticalPadding(TEST_BADGE_VERTICAL_PADDING);
 
     badgeDrawable.setHorizontalOffset(TEST_BADGE_HORIZONTAL_OFFSET);
     badgeDrawable.setVerticalOffset(TEST_BADGE_VERTICAL_OFFSET);
@@ -85,6 +93,8 @@ public class BadgeDrawableTest {
     badgeDrawable.setBackgroundColor(testBackgroundColor);
     badgeDrawable.setBadgeTextColor(testBadgeTextColor);
     badgeDrawable.setVisible(false);
+    badgeDrawable.setMaxNumber(999);
+    badgeDrawable.setMaxCharacterCount(4);
     badgeDrawable.setBadgeNumberLocale(TEST_BADGE_NUMBER_LOCALE);
 
     Parcel parcel = Parcel.obtain();
@@ -94,13 +104,18 @@ public class BadgeDrawableTest {
     BadgeState.State createdFromParcel = BadgeState.State.CREATOR.createFromParcel(parcel);
     BadgeDrawable restoredBadgeDrawable =
         BadgeDrawable.createFromSavedState(context, createdFromParcel);
+    assertThat(restoredBadgeDrawable.getText()).isEqualTo(TEST_BADGE_TEXT);
     assertThat(restoredBadgeDrawable.getNumber()).isEqualTo(TEST_BADGE_NUMBER);
     assertThat(restoredBadgeDrawable.getBackgroundColor()).isEqualTo(testBackgroundColor);
     assertThat(restoredBadgeDrawable.getBadgeTextColor()).isEqualTo(testBadgeTextColor);
     // Values based on the default badge style.
     assertThat(restoredBadgeDrawable.getAlpha()).isEqualTo(255);
     assertThat(restoredBadgeDrawable.getMaxCharacterCount()).isEqualTo(4);
+    assertThat(restoredBadgeDrawable.getMaxNumber()).isEqualTo(999);
     assertThat(restoredBadgeDrawable.getBadgeGravity()).isEqualTo(BadgeDrawable.TOP_START);
+    // badge padding
+    assertThat(restoredBadgeDrawable.getHorizontalPadding()).isEqualTo(TEST_BADGE_HORIZONTAL_PADDING);
+    assertThat(restoredBadgeDrawable.getVerticalPadding()).isEqualTo(TEST_BADGE_VERTICAL_PADDING);
     // badge offsets
     assertThat(restoredBadgeDrawable.getHorizontalOffset()).isEqualTo(TEST_BADGE_HORIZONTAL_OFFSET);
     assertThat(restoredBadgeDrawable.getVerticalOffset()).isEqualTo(TEST_BADGE_VERTICAL_OFFSET);

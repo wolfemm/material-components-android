@@ -27,6 +27,7 @@ import android.widget.AutoCompleteTextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.google.android.material.carousel.CarouselLayoutManager;
+import com.google.android.material.carousel.CarouselSnapHelper;
 import com.google.android.material.carousel.MultiBrowseCarouselStrategy;
 import com.google.android.material.divider.MaterialDividerItemDecoration;
 import com.google.android.material.materialswitch.MaterialSwitch;
@@ -61,6 +62,7 @@ public class MultiBrowseDemoFragment extends DemoFragment {
     MaterialSwitch debugSwitch = view.findViewById(R.id.debug_switch);
     MaterialSwitch forceCompactSwitch = view.findViewById(R.id.force_compact_arrangement_switch);
     MaterialSwitch drawDividers = view.findViewById(R.id.draw_dividers_switch);
+    MaterialSwitch snapSwitch = view.findViewById(R.id.snap_switch);
     AutoCompleteTextView itemCountDropdown = view.findViewById(R.id.item_count_dropdown);
     Slider positionSlider = view.findViewById(R.id.position_slider);
 
@@ -95,9 +97,20 @@ public class MultiBrowseDemoFragment extends DemoFragment {
           }
         });
 
+    CarouselSnapHelper snapHelper = new CarouselSnapHelper();
+    snapSwitch.setOnCheckedChangeListener(
+        (buttonView, isChecked) -> {
+          if (isChecked) {
+            snapHelper.attachToRecyclerView(multiBrowseStartRecyclerView);
+          } else {
+            snapHelper.attachToRecyclerView(null);
+          }
+        });
+
     CarouselAdapter adapter =
         new CarouselAdapter(
-            (item, position) -> multiBrowseStartRecyclerView.scrollToPosition(position));
+            (item, position) -> multiBrowseStartRecyclerView.scrollToPosition(position),
+            R.layout.cat_carousel_item_narrow);
 
     itemCountDropdown.setOnItemClickListener(
         (parent, view1, position, id) -> {
@@ -123,15 +136,15 @@ public class MultiBrowseDemoFragment extends DemoFragment {
 
   private static Runnable updateSliderRange(Slider slider, CarouselAdapter adapter) {
     return () -> {
-      if (adapter.getItemCount() == 0) {
-        slider.setValueFrom(0);
-        slider.setValueTo(0);
+      if (adapter.getItemCount() <= 1) {
+        slider.setEnabled(false);
         return;
       }
 
-      slider.setValue(1);
       slider.setValueFrom(1);
+      slider.setValue(1);
       slider.setValueTo(adapter.getItemCount());
+      slider.setEnabled(true);
     };
   }
 }

@@ -18,33 +18,59 @@ package io.material.catalog.sidesheet;
 
 import io.material.catalog.R;
 
+import static android.view.View.NO_ID;
+
+import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.app.AppCompatDialog;
 import androidx.appcompat.widget.Toolbar;
+import android.util.SparseIntArray;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
+import android.window.BackEvent;
+import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.GravityInt;
 import androidx.annotation.IdRes;
 import androidx.annotation.LayoutRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.annotation.StringRes;
 import androidx.annotation.StyleRes;
+import androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams;
 import androidx.core.view.ViewCompat;
+import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.android.material.sidesheet.SideSheetBehavior;
 import com.google.android.material.sidesheet.SideSheetCallback;
 import com.google.android.material.sidesheet.SideSheetDialog;
 import io.material.catalog.feature.DemoFragment;
 import io.material.catalog.preferences.CatalogPreferencesHelper;
 import io.material.catalog.windowpreferences.WindowPreferencesManager;
+import java.util.ArrayList;
+import java.util.List;
 
 /** A fragment that displays the main Side Sheet demo for the Catalog app. */
 public class SideSheetMainDemoFragment extends DemoFragment {
 
   @Nullable private CatalogPreferencesHelper catalogPreferencesHelper;
+  private final List<View> sideSheetViews = new ArrayList<>();
+
+  private static final SparseIntArray GRAVITY_ID_RES_MAP = new SparseIntArray();
+
+  static {
+    GRAVITY_ID_RES_MAP.append(R.id.left_gravity_button, Gravity.LEFT);
+    GRAVITY_ID_RES_MAP.append(R.id.right_gravity_button, Gravity.RIGHT);
+    GRAVITY_ID_RES_MAP.append(R.id.start_gravity_button, Gravity.START);
+    GRAVITY_ID_RES_MAP.append(R.id.end_gravity_button, Gravity.END);
+  }
+
+  private Button showModalSheetButton;
+  private Button showDetachedModalSheetButton;
+  private MaterialButtonToggleGroup sheetGravityButtonToggleGroup;
 
   @Override
   public void onCreate(@Nullable Bundle bundle) {
@@ -66,6 +92,7 @@ public class SideSheetMainDemoFragment extends DemoFragment {
     View.inflate(getContext(), getSideSheetsContent(), sideSheetsContainer);
 
     setUpToolbar(view);
+    setUpSheetGravityButtonToggleGroup(view);
 
     // Set up standard side sheet.
     View standardRightSideSheet =
@@ -105,56 +132,12 @@ public class SideSheetMainDemoFragment extends DemoFragment {
         R.id.vertically_scrolling_side_sheet_slide_offset_text);
 
     // Set up modal side sheet.
-    SideSheetDialog sideSheetDialog = new SideSheetDialog(requireContext());
-    setUpModalSheet(
-        sideSheetDialog,
-        R.layout.cat_sidesheet_content,
-        R.id.m3_side_sheet,
-        R.id.side_sheet_title_text,
-        R.string.cat_sidesheet_modal_title);
-
-    View showModalSideSheetButton = view.findViewById(R.id.show_modal_side_sheet_button);
-    showModalSideSheetButton.setOnClickListener(v -> sideSheetDialog.show());
-
-    sideSheetDialog
-        .getBehavior()
-        .addCallback(
-            createSideSheetCallback(
-                sideSheetDialog.findViewById(R.id.side_sheet_state_text),
-                sideSheetDialog.findViewById(R.id.side_sheet_slide_offset_text)));
-
-    View modalSideSheetCloseIconButton = sideSheetDialog.findViewById(R.id.close_icon_button);
-    if (modalSideSheetCloseIconButton != null) {
-      modalSideSheetCloseIconButton.setOnClickListener(v -> sideSheetDialog.hide());
-    }
+    showModalSheetButton = view.findViewById(R.id.show_modal_side_sheet_button);
+    setUpModalSheet();
 
     // Set up detached modal side sheet.
-    SideSheetDialog detachedSideSheetDialog =
-        new SideSheetDialog(requireContext(), getDetachedModalThemeOverlayResId());
-
-    setUpModalSheet(
-        detachedSideSheetDialog,
-        R.layout.cat_sidesheet_content,
-        R.id.m3_side_sheet,
-        R.id.side_sheet_title_text,
-        R.string.cat_sidesheet_modal_detached_title);
-
-    View showDetachedModalSideSheetButton =
-        view.findViewById(R.id.show_modal_detached_side_sheet_button);
-    showDetachedModalSideSheetButton.setOnClickListener(v -> detachedSideSheetDialog.show());
-
-    detachedSideSheetDialog
-        .getBehavior()
-        .addCallback(
-            createSideSheetCallback(
-                detachedSideSheetDialog.findViewById(R.id.side_sheet_state_text),
-                detachedSideSheetDialog.findViewById(R.id.side_sheet_slide_offset_text)));
-
-    View detachedModalSideSheetCloseIconButton =
-        detachedSideSheetDialog.findViewById(R.id.close_icon_button);
-    if (detachedModalSideSheetCloseIconButton != null) {
-      detachedModalSideSheetCloseIconButton.setOnClickListener(v -> detachedSideSheetDialog.hide());
-    }
+    showDetachedModalSheetButton = view.findViewById(R.id.show_modal_detached_side_sheet_button);
+    setUpDetachedModalSheet();
 
     // Set up coplanar side sheet.
     View coplanarSideSheet =
@@ -185,6 +168,53 @@ public class SideSheetMainDemoFragment extends DemoFragment {
     return view;
   }
 
+  private void setUpSheetGravityButtonToggleGroup(@NonNull View view) {
+    sheetGravityButtonToggleGroup = view.findViewById(R.id.sheet_gravity_button_toggle_group);
+    // Check the button corresponding to end sheet gravity, which is the default.
+    sheetGravityButtonToggleGroup.check(R.id.end_gravity_button);
+    sheetGravityButtonToggleGroup.addOnButtonCheckedListener(
+        (group, checkedId, isChecked) -> {
+          if (isChecked) {
+            int sheetGravity = getGravityForIdRes(checkedId);
+
+            for (View sideSheetView : sideSheetViews) {
+              ViewGroup.LayoutParams layoutParams = sideSheetView.getLayoutParams();
+              if (layoutParams instanceof LayoutParams) {
+                ((LayoutParams) layoutParams).gravity = sheetGravity;
+                sideSheetView.requestLayout();
+              }
+            }
+          }
+        });
+  }
+
+  private void setupBackHandling(SideSheetBehavior<View> sideSheetBehavior) {
+    OnBackPressedCallback nonModalOnBackPressedCallback =
+        createNonModalOnBackPressedCallback(sideSheetBehavior);
+    requireActivity().getOnBackPressedDispatcher().addCallback(this, nonModalOnBackPressedCallback);
+    sideSheetBehavior.addCallback(
+        new SideSheetCallback() {
+          @Override
+          public void onStateChanged(@NonNull View sheet, int newState) {
+            switch (newState) {
+              case SideSheetBehavior.STATE_EXPANDED:
+              case SideSheetBehavior.STATE_SETTLING:
+                nonModalOnBackPressedCallback.setEnabled(true);
+                break;
+              case SideSheetBehavior.STATE_HIDDEN:
+                nonModalOnBackPressedCallback.setEnabled(false);
+                break;
+              case SideSheetBehavior.STATE_DRAGGING:
+              default:
+                break;
+            }
+          }
+
+          @Override
+          public void onSlide(@NonNull View sheet, float slideOffset) {}
+        });
+  }
+
   private View setUpSideSheet(
       @NonNull View view,
       @IdRes int sideSheetContainerId,
@@ -199,6 +229,10 @@ public class SideSheetMainDemoFragment extends DemoFragment {
     View standardSideSheetCloseIconButton = sideSheet.findViewById(closeIconButtonId);
     standardSideSheetCloseIconButton.setOnClickListener(v -> hideSideSheet(sideSheetBehavior));
 
+    setupBackHandling(sideSheetBehavior);
+
+    sideSheetViews.add(sideSheet);
+
     return sideSheet;
   }
 
@@ -210,20 +244,85 @@ public class SideSheetMainDemoFragment extends DemoFragment {
             sideSheet.findViewById(stateTextViewId), sideSheet.findViewById(slideOffsetTextId)));
   }
 
+  private void setUpDetachedModalSheet() {
+    setUpModalSheet(
+        getDetachedModalThemeOverlayResId(),
+        R.layout.cat_sidesheet_content,
+        R.id.m3_side_sheet,
+        R.id.side_sheet_title_text,
+        R.string.cat_sidesheet_modal_detached_title,
+        showDetachedModalSheetButton,
+        R.id.close_icon_button);
+  }
+
+  private void setUpModalSheet() {
+    setUpModalSheet(
+        R.layout.cat_sidesheet_content,
+        R.id.m3_side_sheet,
+        R.id.side_sheet_title_text,
+        R.string.cat_sidesheet_modal_title,
+        showModalSheetButton,
+        R.id.close_icon_button);
+  }
+
   private void setUpModalSheet(
-      @NonNull AppCompatDialog sheetDialog,
       @LayoutRes int sheetContentLayoutRes,
       @IdRes int sheetContentRootIdRes,
       @IdRes int sheetTitleIdRes,
-      @StringRes int sheetTitleStringRes) {
-    sheetDialog.setContentView(sheetContentLayoutRes);
-    View modalSheetContent = sheetDialog.findViewById(sheetContentRootIdRes);
-    if (modalSheetContent != null) {
-      TextView modalSideSheetTitle = modalSheetContent.findViewById(sheetTitleIdRes);
-      modalSideSheetTitle.setText(sheetTitleStringRes);
-    }
-    new WindowPreferencesManager(requireContext())
-        .applyEdgeToEdgePreference(sheetDialog.getWindow());
+      @StringRes int sheetTitleStringRes,
+      @NonNull Button showSheetButtonIdRes,
+      @IdRes int closeIconButtonIdRes) {
+    setUpModalSheet(
+        NO_ID,
+        sheetContentLayoutRes,
+        sheetContentRootIdRes,
+        sheetTitleIdRes,
+        sheetTitleStringRes,
+        showSheetButtonIdRes,
+        closeIconButtonIdRes);
+  }
+
+  private void setUpModalSheet(
+      @StyleRes int sheetThemeOverlayRes,
+      @LayoutRes int sheetContentLayoutRes,
+      @IdRes int sheetContentRootIdRes,
+      @IdRes int sheetTitleIdRes,
+      @StringRes int sheetTitleStringRes,
+      @NonNull Button showSheetButton,
+      @IdRes int closeIconButtonIdRes) {
+    showSheetButton.setOnClickListener(
+        v1 -> {
+          SideSheetDialog sheetDialog =
+              sheetThemeOverlayRes == NO_ID
+                  ? new SideSheetDialog(requireContext())
+                  : new SideSheetDialog(requireContext(), sheetThemeOverlayRes);
+
+          sheetDialog.setContentView(sheetContentLayoutRes);
+          View modalSheetContent = sheetDialog.findViewById(sheetContentRootIdRes);
+          if (modalSheetContent != null) {
+            TextView modalSideSheetTitle = modalSheetContent.findViewById(sheetTitleIdRes);
+            modalSideSheetTitle.setText(sheetTitleStringRes);
+          }
+          new WindowPreferencesManager(requireContext())
+              .applyEdgeToEdgePreference(sheetDialog.getWindow());
+
+          sheetDialog
+              .getBehavior()
+              .addCallback(
+                  createSideSheetCallback(
+                      sheetDialog.findViewById(R.id.side_sheet_state_text),
+                      sheetDialog.findViewById(R.id.side_sheet_slide_offset_text)));
+
+          sheetDialog.setSheetEdge(
+              getGravityForIdRes(sheetGravityButtonToggleGroup.getCheckedButtonId()));
+
+          View modalSideSheetCloseIconButton = sheetDialog.findViewById(closeIconButtonIdRes);
+          if (modalSideSheetCloseIconButton != null) {
+            modalSideSheetCloseIconButton.setOnClickListener(v2 -> sheetDialog.hide());
+          }
+
+          sheetDialog.show();
+        });
   }
 
   private void setUpToolbar(@NonNull View view) {
@@ -261,16 +360,23 @@ public class SideSheetMainDemoFragment extends DemoFragment {
     return R.style.ThemeOverlay_Catalog_SideSheet_Modal_Detached;
   }
 
+  @GravityInt
+  private static int getGravityForIdRes(@IdRes int gravityButtonIdRes) {
+    return GRAVITY_ID_RES_MAP.get(gravityButtonIdRes);
+  }
+
   @Override
   public boolean shouldShowDefaultDemoActionBar() {
     return false;
   }
 
   private SideSheetCallback createSideSheetCallback(
-      TextView stateTextView, TextView slideOffsetTextView) {
+      @NonNull TextView stateTextView, @NonNull TextView slideOffsetTextView) {
     return new SideSheetCallback() {
       @Override
       public void onStateChanged(@NonNull View sheet, int newState) {
+        stateTextView.setVisibility(View.VISIBLE);
+
         switch (newState) {
           case SideSheetBehavior.STATE_DRAGGING:
             stateTextView.setText(R.string.cat_sidesheet_state_dragging);
@@ -289,8 +395,37 @@ public class SideSheetMainDemoFragment extends DemoFragment {
 
       @Override
       public void onSlide(@NonNull View sheet, float slideOffset) {
+        slideOffsetTextView.setVisibility(View.VISIBLE);
         slideOffsetTextView.setText(
             getResources().getString(R.string.cat_sidesheet_slide_offset_text, slideOffset));
+      }
+    };
+  }
+
+  private OnBackPressedCallback createNonModalOnBackPressedCallback(
+      SideSheetBehavior<View> behavior) {
+    return new OnBackPressedCallback(/* enabled= */ false) {
+      @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
+      @Override
+      public void handleOnBackStarted(@NonNull BackEvent backEvent) {
+        behavior.startBackProgress(backEvent);
+      }
+
+      @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
+      @Override
+      public void handleOnBackProgressed(@NonNull BackEvent backEvent) {
+        behavior.updateBackProgress(backEvent);
+      }
+
+      @Override
+      public void handleOnBackPressed() {
+        behavior.handleBackInvoked();
+      }
+
+      @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
+      @Override
+      public void handleOnBackCancelled() {
+        behavior.cancelBackProgress();
       }
     };
   }

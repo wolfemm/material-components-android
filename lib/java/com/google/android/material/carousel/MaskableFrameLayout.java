@@ -19,34 +19,33 @@ package com.google.android.material.carousel;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Outline;
-import android.graphics.Path;
 import android.graphics.RectF;
-import android.os.Build.VERSION;
-import android.os.Build.VERSION_CODES;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewOutlineProvider;
 import android.widget.FrameLayout;
-import androidx.annotation.DoNotInline;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
+import androidx.annotation.RestrictTo;
+import androidx.annotation.RestrictTo.Scope;
+import androidx.annotation.VisibleForTesting;
 import androidx.core.math.MathUtils;
 import com.google.android.material.animation.AnimationUtils;
+import com.google.android.material.shape.AbsoluteCornerSize;
+import com.google.android.material.shape.ClampedCornerSize;
 import com.google.android.material.shape.ShapeAppearanceModel;
+import com.google.android.material.shape.Shapeable;
+import com.google.android.material.shape.ShapeableDelegate;
 
 /** A {@link FrameLayout} than is able to mask itself and all children. */
-public class MaskableFrameLayout extends FrameLayout implements Maskable {
+public class MaskableFrameLayout extends FrameLayout implements Maskable, Shapeable {
 
   private float maskXPercentage = 0F;
   private final RectF maskRect = new RectF();
-  private final Path maskPath = new Path();
-
   @Nullable private OnMaskChangedListener onMaskChangedListener;
-
-  private final ShapeAppearanceModel shapeAppearanceModel;
+  @NonNull private ShapeAppearanceModel shapeAppearanceModel;
+  private final ShapeableDelegate shapeableDelegate = ShapeableDelegate.create(this);
+  @Nullable private Boolean savedForceCompatClippingEnabled = null;
 
   public MaskableFrameLayout(@NonNull Context context) {
     this(context, null);
@@ -59,16 +58,56 @@ public class MaskableFrameLayout extends FrameLayout implements Maskable {
   public MaskableFrameLayout(
       @NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
     super(context, attrs, defStyleAttr);
-    shapeAppearanceModel = ShapeAppearanceModel.builder(context, attrs, defStyleAttr, 0, 0).build();
-    if (VERSION.SDK_INT >= VERSION_CODES.LOLLIPOP) {
-      MaskableImplV21.initMaskOutlineProvider(this);
-    }
+    setShapeAppearanceModel(
+        ShapeAppearanceModel.builder(context, attrs, defStyleAttr, 0, 0).build());
   }
 
   @Override
   protected void onSizeChanged(int w, int h, int oldw, int oldh) {
     super.onSizeChanged(w, h, oldw, oldh);
     onMaskChanged();
+  }
+
+  @Override
+  protected void onAttachedToWindow() {
+    super.onAttachedToWindow();
+    // Restore any saved force compat clipping setting.
+    if (savedForceCompatClippingEnabled != null) {
+      shapeableDelegate.setForceCompatClippingEnabled(this, savedForceCompatClippingEnabled);
+    }
+  }
+
+  @Override
+  protected void onDetachedFromWindow() {
+    // When detaching from the window, force canvas clipping to avoid any transitions from releasing
+    // the mask outline set by the MaskableDelegate's ViewOutlineProvider, if any.
+    savedForceCompatClippingEnabled = shapeableDelegate.isForceCompatClippingEnabled();
+    shapeableDelegate.setForceCompatClippingEnabled(this, true);
+    super.onDetachedFromWindow();
+  }
+
+  @Override
+  public void setShapeAppearanceModel(@NonNull ShapeAppearanceModel shapeAppearanceModel) {
+    this.shapeAppearanceModel =
+        shapeAppearanceModel.withTransformedCornerSizes(
+            cornerSize -> {
+              if (cornerSize instanceof AbsoluteCornerSize) {
+                // Enforce that the corners of the shape appearance are never larger than half the
+                // width of the shortest edge. As the size of the mask changes, we never want the
+                // corners to be larger than half the width or height of this view.
+                return ClampedCornerSize.createFromCornerSize((AbsoluteCornerSize) cornerSize);
+              } else {
+                // Relative corner size already enforces a max size based on shortest edge.
+                return cornerSize;
+              }
+            });
+    shapeableDelegate.onShapeAppearanceChanged(this, this.shapeAppearanceModel);
+  }
+
+  @NonNull
+  @Override
+  public ShapeAppearanceModel getShapeAppearanceModel() {
+    return shapeAppearanceModel;
   }
 
   /**
@@ -115,26 +154,21 @@ public class MaskableFrameLayout extends FrameLayout implements Maskable {
     // masked away.
     float maskWidth = AnimationUtils.lerp(0f, getWidth() / 2F, 0f, 1f, maskXPercentage);
     maskRect.set(maskWidth, 0F, (getWidth() - maskWidth), getHeight());
+    shapeableDelegate.onMaskChanged(this, maskRect);
     if (onMaskChangedListener != null) {
       onMaskChangedListener.onMaskChanged(maskRect);
     }
-    refreshMaskPath();
   }
 
-  private float getCornerRadiusFromShapeAppearance() {
-    return shapeAppearanceModel.getTopRightCornerSize().getCornerSize(maskRect);
-  }
-
-  private void refreshMaskPath() {
-    if (!maskRect.isEmpty()) {
-      maskPath.rewind();
-      float cornerRadius = getCornerRadiusFromShapeAppearance();
-      maskPath.addRoundRect(maskRect, cornerRadius, cornerRadius, Path.Direction.CW);
-      if (VERSION.SDK_INT >= VERSION_CODES.LOLLIPOP) {
-        invalidateOutline();
-      }
-      invalidate();
-    }
+  /**
+   * Set whether this view should always use canvas clipping to clip to its masked shape.
+   *
+   * @hide
+   */
+  @VisibleForTesting
+  @RestrictTo(Scope.LIBRARY_GROUP)
+  public void setForceCompatClipping(boolean forceCompatClipping) {
+    shapeableDelegate.setForceCompatClippingEnabled(this, forceCompatClipping);
   }
 
   @SuppressLint("ClickableViewAccessibility")
@@ -153,36 +187,6 @@ public class MaskableFrameLayout extends FrameLayout implements Maskable {
 
   @Override
   protected void dispatchDraw(Canvas canvas) {
-    canvas.save();
-    if (!maskPath.isEmpty()) {
-      canvas.clipPath(maskPath);
-    }
-    super.dispatchDraw(canvas);
-    canvas.restore();
-  }
-
-  @RequiresApi(VERSION_CODES.LOLLIPOP)
-  private static class MaskableImplV21 {
-
-    @DoNotInline
-    private static void initMaskOutlineProvider(MaskableFrameLayout maskableFrameLayout) {
-      maskableFrameLayout.setClipToOutline(true);
-      maskableFrameLayout.setOutlineProvider(
-          new ViewOutlineProvider() {
-            @Override
-            public void getOutline(View view, Outline outline) {
-              RectF maskRect = ((MaskableFrameLayout) view).getMaskRectF();
-              float cornerSize = ((MaskableFrameLayout) view).getCornerRadiusFromShapeAppearance();
-              if (!maskRect.isEmpty()) {
-                outline.setRoundRect(
-                    (int) maskRect.left,
-                    (int) maskRect.top,
-                    (int) maskRect.right,
-                    (int) maskRect.bottom,
-                    cornerSize);
-              }
-            }
-          });
-    }
+    shapeableDelegate.maybeClip(canvas, super::dispatchDraw);
   }
 }

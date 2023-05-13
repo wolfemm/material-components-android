@@ -18,6 +18,7 @@ package com.google.android.material.carousel;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import androidx.recyclerview.widget.RecyclerView;
@@ -284,5 +285,35 @@ class CarouselHelper {
       scrollLatch.countDown();
       return scroll;
     }
+  }
+
+  static KeylineState getTestCenteredKeylineState() {
+    float smallSize = 56F;
+    float extraSmallSize = 10F;
+    float largeSize = 450F;
+    float mediumSize = 88F;
+
+    float extraSmallMask = getKeylineMaskPercentage(extraSmallSize, largeSize);
+    float smallMask = getKeylineMaskPercentage(smallSize, largeSize);
+    float mediumMask = getKeylineMaskPercentage(mediumSize, largeSize);
+
+    return new KeylineState.Builder(450F)
+        .addKeyline(5F, extraSmallMask, extraSmallSize)
+        .addKeylineRange(38F, smallMask, smallSize, 2)
+        .addKeyline(166F, mediumMask, mediumSize)
+        .addKeylineRange(435F, 0F, largeSize, 2, true)
+        .addKeyline(1154F, mediumMask, mediumSize)
+        .addKeylineRange(1226F, smallMask, smallSize, 2)
+        .addKeyline(1315F, extraSmallMask, extraSmallSize)
+        .build();
+  }
+
+  static View createViewWithSize(Context context, int width, int height) {
+    View view = new View(context);
+    view.setLayoutParams(new RecyclerView.LayoutParams(width, height));
+    view.measure(
+        MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
+        MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY));
+    return view;
   }
 }

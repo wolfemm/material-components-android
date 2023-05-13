@@ -25,6 +25,7 @@
   <application
     android:name="io.material.catalog.application.${application_name}"
     android:allowBackup="true"
+    android:enableOnBackInvokedCallback="true"
     android:icon="@mipmap/ic_launcher"
     android:label="@string/cat_app_name"
     android:supportsRtl="true"
@@ -50,6 +51,10 @@
       android:name=".navigationdrawer.NavigationDrawerDemoActivity"
       android:exported="true"
       android:label="@string/cat_navigationdrawer_title" />
+    <activity
+      android:name=".navigationdrawer.CustomNavigationDrawerDemoActivity"
+      android:exported="true"
+      android:label="@string/cat_navigationdrawer_custom_title" />
     <activity
       android:name=".topappbar.TopAppBarActionBarDemoActivity"
       android:exported="true"

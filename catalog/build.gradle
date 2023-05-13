@@ -1,17 +1,25 @@
 apply plugin: 'com.android.application'
 
 dependencies {
+
+  constraints {
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.21") {
+      because("kotlin-stdlib-jdk8 is now a part of kotlin-stdlib")
+    }
+  }
+
   api 'com.google.dagger:dagger:2.45'
-  annotationProcessor 'com.google.dagger:dagger-compiler:2.45'
+  annotationProcessor 'com.google.dagger:dagger-compiler:2.46'
 
   api 'com.google.dagger:dagger-android:2.45'
-  api 'com.google.dagger:dagger-android-support:2.45'
+  api 'com.google.dagger:dagger-android-support:2.46'
   annotationProcessor 'com.google.dagger:dagger-android-processor:2.45'
 
   api 'androidx.multidex:multidex:2.0.1'
   api 'androidx.constraintlayout:constraintlayout:2.1.0'
   api 'androidx.gridlayout:gridlayout:1.0.0'
   api "androidx.multidex:multidex:2.0.1"
+  api "androidx.activity:activity:1.8.0-alpha02"
   api "androidx.recyclerview:recyclerview:1.2.1"
   api 'androidx.window:window:1.0.0-beta04'
   api "androidx.window:window-java:1.0.0-beta04"
@@ -19,7 +27,7 @@ dependencies {
 
   api 'com.google.guava:guava:31.1-android'
 
-  api 'com.github.bumptech.glide:glide:4.15.0'
+  api 'com.github.bumptech.glide:glide:4.15.1'
 
   api project(':lib')
 
@@ -110,10 +118,6 @@ android {
     unitTests.returnDefaultValues = true
   }
 
-  aaptOptions {
-    additionalParameters "--no-version-vectors"
-  }
-
   sourceSets {
     main {
       manifest.srcFile 'java/io/material/catalog/AndroidManifest.xml'
@@ -137,5 +141,8 @@ android {
   compileOptions {
     sourceCompatibility JavaVersion.VERSION_1_8
     targetCompatibility JavaVersion.VERSION_1_8
+  }
+  androidResources {
+    additionalParameters '--no-version-vectors'
   }
 }

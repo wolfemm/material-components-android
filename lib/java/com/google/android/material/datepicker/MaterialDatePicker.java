@@ -52,11 +52,9 @@ import androidx.annotation.StringRes;
 import androidx.annotation.StyleRes;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.util.Pair;
-import androidx.core.view.AccessibilityDelegateCompat;
 import androidx.core.view.OnApplyWindowInsetsListener;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import com.google.android.material.dialog.InsetDialogOnTouchListener;
 import com.google.android.material.internal.CheckableImageButton;
 import com.google.android.material.internal.EdgeToEdgeUtils;
@@ -245,17 +243,26 @@ public final class MaterialDatePicker<S> extends DialogFragment {
     Dialog dialog = new Dialog(requireContext(), getThemeResId(requireContext()));
     Context context = dialog.getContext();
     fullscreen = isFullscreen(context);
-    int surfaceColor =
-        MaterialAttributes.resolveOrThrow(
-            context, R.attr.colorSurface, MaterialDatePicker.class.getCanonicalName());
     background =
         new MaterialShapeDrawable(
             context,
             null,
             R.attr.materialCalendarStyle,
             R.style.Widget_MaterialComponents_MaterialCalendar);
+
+    TypedArray a =
+        context.obtainStyledAttributes(
+            null,
+            R.styleable.MaterialCalendar,
+            R.attr.materialCalendarStyle,
+            R.style.Widget_MaterialComponents_MaterialCalendar);
+
+    int backgroundColor = a.getColor(R.styleable.MaterialCalendar_backgroundTint, 0);
+
+    a.recycle();
+
     background.initializeElevationOverlay(context);
-    background.setFillColor(ColorStateList.valueOf(surfaceColor));
+    background.setFillColor(ColorStateList.valueOf(backgroundColor));
     background.setElevation(ViewCompat.getElevation(dialog.getWindow().getDecorView()));
     return dialog;
   }
@@ -313,17 +320,6 @@ public final class MaterialDatePicker<S> extends DialogFragment {
               listener.onPositiveButtonClick(getSelection());
             }
             dismiss();
-          }
-        });
-    ViewCompat.setAccessibilityDelegate(
-        confirmButton,
-        new AccessibilityDelegateCompat() {
-          @Override
-          public void onInitializeAccessibilityNodeInfo(
-              @NonNull View host, @NonNull AccessibilityNodeInfoCompat info) {
-            super.onInitializeAccessibilityNodeInfo(host, info);
-            String contentDescription = getDateSelector().getError() + ", " + info.getText();
-            info.setContentDescription(contentDescription);
           }
         });
 

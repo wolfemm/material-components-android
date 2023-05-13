@@ -16,18 +16,21 @@
 
 package com.google.android.material.carousel;
 
-import com.google.android.material.R;
-
-import static java.lang.Math.abs;
+import static com.google.android.material.carousel.CarouselStrategyHelper.createLeftAlignedKeylineState;
+import static com.google.android.material.carousel.CarouselStrategyHelper.getSmallSizeMax;
+import static com.google.android.material.carousel.CarouselStrategyHelper.getSmallSizeMin;
+import static com.google.android.material.carousel.CarouselStrategyHelper.maxValue;
+import static java.lang.Math.ceil;
+import static java.lang.Math.floor;
 import static java.lang.Math.max;
-import static java.lang.Math.round;
+import static java.lang.Math.min;
 
-import android.content.Context;
 import androidx.recyclerview.widget.RecyclerView.LayoutParams;
 import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.annotation.RestrictTo;
 import androidx.annotation.RestrictTo.Scope;
+import androidx.core.math.MathUtils;
 
 /**
  * A {@link CarouselStrategy} that knows how to size and fit large, medium and small items into a
@@ -44,18 +47,15 @@ import androidx.annotation.RestrictTo.Scope;
  */
 public final class MultiBrowseCarouselStrategy extends CarouselStrategy {
 
-  // The percentage by which a medium item needs to be larger than a small item and smaller
-  // than an large item. This is used to ensure a medium item is truly somewhere between the
-  // small and large sizes, making for a visually balanced arrangement.
-  // 0F would mean a medium item could be >= small item size and <= a large item size.
-  // .25F means the medium item must be >= 125% of the small item size and <= 75% of the
-  // large item size.
-  private static final float MEDIUM_SIZE_PERCENTAGE_DELTA = .25F;
+  private static final int[] SMALL_COUNTS = new int[] {1};
+  private static final int[] MEDIUM_COUNTS = new int[] {1, 0};
+  private static final int[] MEDIUM_COUNTS_COMPACT = new int[] {0};
 
   // True if medium items should never be added and arrangements should consist of only large and
   // small items. This will often result in a greater number of large items but more variability in
   // large item size. This can be desirable when optimizing for the greatest number of fully
   // unmasked items visible at once.
+  // TODO(b/274604170): Remove this option
   private final boolean forceCompactArrangement;
 
   public MultiBrowseCarouselStrategy() {
@@ -68,7 +68,6 @@ public final class MultiBrowseCarouselStrategy extends CarouselStrategy {
    * @param forceCompactArrangement true if items should be fit in a way that maximizes the number
    *     of large, unmasked items. false if this strategy is free to determine an opinionated
    *     balance between item sizes.
-   *
    * @hide
    */
   @RestrictTo(Scope.LIBRARY_GROUP)
@@ -76,135 +75,64 @@ public final class MultiBrowseCarouselStrategy extends CarouselStrategy {
     this.forceCompactArrangement = forceCompactArrangement;
   }
 
-  private float getExtraSmallSize(@NonNull Context context) {
-    return context.getResources().getDimension(R.dimen.m3_carousel_gone_size);
-  }
-
-  private float getSmallSize(@NonNull Context context) {
-    return context.getResources().getDimension(R.dimen.m3_carousel_small_item_size);
-  }
-
   @Override
   @NonNull
-  KeylineState onFirstChildMeasuredWithMargins(
-      @NonNull Carousel carousel, @NonNull View child) {
+  KeylineState onFirstChildMeasuredWithMargins(@NonNull Carousel carousel, @NonNull View child) {
+    float availableSpace = carousel.getContainerWidth();
+
     LayoutParams childLayoutParams = (LayoutParams) child.getLayoutParams();
     float childHorizontalMargins = childLayoutParams.leftMargin + childLayoutParams.rightMargin;
 
-    float smallChildWidth = getSmallSize(child.getContext()) + childHorizontalMargins;
-    float extraSmallChildWidth = getExtraSmallSize(child.getContext()) + childHorizontalMargins;
+    float smallChildWidthMin = getSmallSizeMin(child.getContext()) + childHorizontalMargins;
+    float smallChildWidthMax = getSmallSizeMax(child.getContext()) + childHorizontalMargins;
 
-    float availableSpace = carousel.getContainerWidth();
+    float measuredChildWidth = child.getMeasuredWidth();
+    float targetLargeChildWidth = min(measuredChildWidth + childHorizontalMargins, availableSpace);
+    // Ideally we would like to create a balanced arrangement where a small item is 1/3 the size of
+    // the large item and medium items are sized between large and small items. Clamp the small
+    // target size within our min-max range and as close to 1/3 of the target large item size as
+    // possible.
+    float targetSmallChildWidth =
+        MathUtils.clamp(
+            measuredChildWidth / 3F + childHorizontalMargins,
+            getSmallSizeMin(child.getContext()) + childHorizontalMargins,
+            getSmallSizeMax(child.getContext()) + childHorizontalMargins);
+    float targetMediumChildWidth = (targetLargeChildWidth + targetSmallChildWidth) / 2F;
 
-    // The minimum viable arrangement is 1 large and 1 small child. A single large item size
-    // cannot be greater than the available space minus a small child width.
-    float maxLargeChildSpace = availableSpace - smallChildWidth;
-    float largeChildWidth = child.getMeasuredWidth() + childHorizontalMargins;
-
-    int largeCount;
-    int mediumCount;
-    int smallCount;
-    float mediumChildWidth;
-
-    if (maxLargeChildSpace <= smallChildWidth) {
-      // There is not enough space to show a small and a large item. Remove the small item and
-      // default to showing a single, fullscreen item.
-      largeCount = 1;
-      largeChildWidth = availableSpace;
-      mediumCount = 0;
-      mediumChildWidth = 0;
-      smallCount = 0;
-    } else if (largeChildWidth >= maxLargeChildSpace) {
-      // There is only enough space to show 1 large, and 1 small item.
-      largeCount = 1;
-      largeChildWidth = maxLargeChildSpace;
-      mediumCount = 0;
-      mediumChildWidth = 0F;
-      smallCount = 1;
-    } else {
-      // There is enough space for some combination of large items, an optional medium item,
-      // and a small item. Find the arrangement where large items need to be adjusted in
-      // size by the least amount.
-      float mediumChildMinWidth =
-          smallChildWidth + (smallChildWidth * MEDIUM_SIZE_PERCENTAGE_DELTA);
-      // TODO: Ensure this is always <= expanded size even after expanded size is adjusted.
-      float mediumChildMaxWidth =
-          largeChildWidth - (largeChildWidth * MEDIUM_SIZE_PERCENTAGE_DELTA);
-
-      float largeRangeMin = availableSpace - (mediumChildMaxWidth + smallChildWidth);
-      float largeRangeMax = availableSpace - (mediumChildMinWidth + smallChildWidth);
-
-      // The standard arrangement is `x` large, 1 medium, and 1 small item where `x` is the
-      // maximum number of large items that can fit within the available space.
-      float standardLargeRangeCenter = (largeRangeMin + largeRangeMax) / 2;
-      float standardLargeQuotient = standardLargeRangeCenter / largeChildWidth;
-      int standardLargeCount = round(standardLargeQuotient);
-      float standardLargeChildWidth = largeChildWidth;
-      // If the largeChildWidth * count falls outside of the large min-max range, the width of
-      // large children for the standard arrangement needs to be adjusted. Make the smallest
-      // adjustment possible to bring the number of large children back to fit within the
-      // available space.
-      if (largeChildWidth * standardLargeCount < largeRangeMin) {
-        standardLargeChildWidth = largeRangeMin / standardLargeCount;
-      } else if (largeChildWidth * standardLargeCount > largeRangeMax) {
-        standardLargeChildWidth = largeRangeMax / standardLargeCount;
-      }
-
-      // The compact arrangement is `x` large, and 1 small item where `x` is the maximum
-      // number of large items that can fit within the available space.
-      float compactLargeQuotient = (availableSpace - smallChildWidth) / largeChildWidth;
-      int compactLargeCount = round(compactLargeQuotient);
-      // Adjust the largeChildWidth so largeChildWidth * largeCount fits perfectly within
-      // the available space.
-      float compactLargeChildWidth = (availableSpace - smallChildWidth) / compactLargeCount;
-
-      // Use the arrangement type which requires the large item size to be adjusted the least,
-      // retaining the developer specified item size as much as possible.
-      if (abs(largeChildWidth - standardLargeChildWidth)
-              <= abs(largeChildWidth - compactLargeChildWidth)
-          && !forceCompactArrangement) {
-        largeCount = standardLargeCount;
-        largeChildWidth = standardLargeChildWidth;
-        mediumCount = 1;
-        mediumChildWidth = availableSpace - (largeChildWidth * largeCount) - smallChildWidth;
-        smallCount = 1;
-      } else {
-        largeCount = compactLargeCount;
-        largeChildWidth = compactLargeChildWidth;
-        mediumCount = 0;
-        mediumChildWidth = 0;
-        smallCount = 1;
-      }
+    // Create arrays representing the possible count of small, medium, and large items. These are
+    // not in an asc./dec. order but are in order of priority. A small count array of { 2, 3, 1 }
+    // says that ideally an arrangement with 2 small items is found, then 3 is next most desirable,
+    // then finally 1.
+    int[] smallCounts = SMALL_COUNTS;
+    int[] mediumCounts = forceCompactArrangement ? MEDIUM_COUNTS_COMPACT : MEDIUM_COUNTS;
+    // Find the minimum space left for large items after filling the carousel with the most
+    // permissible medium and small items to determine a plausible minimum large count.
+    float minAvailableLargeSpace =
+        availableSpace
+            - (targetMediumChildWidth * maxValue(mediumCounts))
+            - (smallChildWidthMax * maxValue(smallCounts));
+    int largeCountMin = (int) max(1, floor(minAvailableLargeSpace / targetLargeChildWidth));
+    int largeCountMax = (int) ceil(availableSpace / targetLargeChildWidth);
+    int[] largeCounts = new int[largeCountMax - largeCountMin + 1];
+    for (int i = 0; i < largeCounts.length; i++) {
+      largeCounts[i] = largeCountMax - i;
     }
 
-    float start = 0F;
-    float extraSmallHeadCenterX = start - (extraSmallChildWidth / 2F);
+    Arrangement arrangement = Arrangement.findLowestCostArrangement(
+        availableSpace,
+        targetSmallChildWidth,
+        smallChildWidthMin,
+        smallChildWidthMax,
+        smallCounts,
+        targetMediumChildWidth,
+        mediumCounts,
+        targetLargeChildWidth,
+        largeCounts);
 
-    float largeStartCenterX = start + (largeChildWidth / 2F);
-    float largeEndCenterX = largeStartCenterX + (max(0, largeCount - 1) * largeChildWidth);
-    start = largeEndCenterX + largeChildWidth / 2F;
-
-    float mediumCenterX = mediumCount > 0 ? start + (mediumChildWidth / 2F) : largeEndCenterX;
-    start = mediumCount > 0 ? mediumCenterX + (mediumChildWidth / 2F) : start;
-
-    float smallStartCenterX = smallCount > 0 ? start + (smallChildWidth / 2F) : mediumCenterX;
-
-    float extraSmallTailCenterX = carousel.getContainerWidth() + (extraSmallChildWidth / 2F);
-
-    float extraSmallMask =
-        getChildMaskPercentage(extraSmallChildWidth, largeChildWidth, childHorizontalMargins);
-    float smallMask =
-        getChildMaskPercentage(smallChildWidth, largeChildWidth, childHorizontalMargins);
-    float mediumMask =
-        getChildMaskPercentage(mediumChildWidth, largeChildWidth, childHorizontalMargins);
-    float largeMask = 0F;
-
-    return new KeylineState.Builder(largeChildWidth)
-        .addKeyline(extraSmallHeadCenterX, extraSmallMask, extraSmallChildWidth)
-        .addKeylineRange(largeStartCenterX, largeMask, largeChildWidth, largeCount, true)
-        .addKeyline(mediumCenterX, mediumMask, mediumChildWidth)
-        .addKeylineRange(smallStartCenterX, smallMask, smallChildWidth, smallCount)
-        .addKeyline(extraSmallTailCenterX, extraSmallMask, extraSmallChildWidth)
-        .build();
+    return createLeftAlignedKeylineState(
+        child.getContext(),
+        childHorizontalMargins,
+        availableSpace,
+        arrangement);
   }
 }

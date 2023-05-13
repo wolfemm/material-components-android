@@ -21,12 +21,13 @@ import com.google.android.material.R;
 import static androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP;
 import static com.google.android.material.theme.overlay.MaterialThemeOverlay.wrap;
 
+import android.animation.Animator.AnimatorListener;
+import android.animation.ValueAnimator.AnimatorUpdateListener;
 import android.app.Activity;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.ColorDrawable;
@@ -45,13 +46,17 @@ import androidx.appcompat.view.menu.MenuBuilder;
 import androidx.appcompat.view.menu.MenuItemImpl;
 import androidx.appcompat.widget.TintTypedArray;
 import android.util.AttributeSet;
+import android.util.Pair;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.view.ViewTreeObserver.OnGlobalLayoutListener;
+import android.window.BackEvent;
 import androidx.annotation.DimenRes;
 import androidx.annotation.Dimension;
 import androidx.annotation.DrawableRes;
@@ -60,26 +65,35 @@ import androidx.annotation.LayoutRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.Px;
+import androidx.annotation.RequiresApi;
 import androidx.annotation.RestrictTo;
 import androidx.annotation.StyleRes;
+import androidx.annotation.VisibleForTesting;
 import androidx.core.content.ContextCompat;
+import androidx.core.os.BuildCompat;
 import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.customview.view.AbsSavedState;
 import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.drawerlayout.widget.DrawerLayout.DrawerListener;
+import androidx.drawerlayout.widget.DrawerLayout.SimpleDrawerListener;
 import com.google.android.material.internal.ContextUtils;
 import com.google.android.material.internal.NavigationMenu;
 import com.google.android.material.internal.NavigationMenuPresenter;
 import com.google.android.material.internal.ScrimInsetsFrameLayout;
 import com.google.android.material.internal.ThemeEnforcement;
 import com.google.android.material.internal.WindowUtils;
+import com.google.android.material.motion.MaterialBackHandler;
+import com.google.android.material.motion.MaterialBackOrchestrator;
+import com.google.android.material.motion.MaterialSideContainerBackHelper;
 import com.google.android.material.resources.MaterialResources;
 import com.google.android.material.ripple.RippleUtils;
 import com.google.android.material.shape.MaterialShapeDrawable;
 import com.google.android.material.shape.MaterialShapeUtils;
 import com.google.android.material.shape.ShapeAppearanceModel;
-import com.google.android.material.shape.ShapeAppearancePathProvider;
+import com.google.android.material.shape.ShapeableDelegate;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 
 /**
  * Represents a standard navigation menu for application. The menu contents can be populated by a
@@ -107,7 +121,7 @@ import com.google.android.material.shape.ShapeAppearancePathProvider;
  * &lt;/androidx.drawerlayout.widget.DrawerLayout&gt;
  * </pre>
  */
-public class NavigationView extends ScrimInsetsFrameLayout {
+public class NavigationView extends ScrimInsetsFrameLayout implements MaterialBackHandler {
 
   private static final int[] CHECKED_STATE_SET = {android.R.attr.state_checked};
   private static final int[] DISABLED_STATE_SET = {-android.R.attr.state_enabled};
@@ -128,12 +142,30 @@ public class NavigationView extends ScrimInsetsFrameLayout {
   private boolean topInsetScrimEnabled = true;
   private boolean bottomInsetScrimEnabled = true;
 
-  private int layoutGravity = Gravity.NO_GRAVITY;
   @Px private int drawerLayoutCornerSize = 0;
-  private boolean drawerLayoutCornerClippingEnabled = false;
+  private final ShapeableDelegate shapeableDelegate = ShapeableDelegate.create(this);
 
-  @Nullable private Path shapeClipPath;
-  private final RectF shapeClipBounds = new RectF();
+  private final MaterialSideContainerBackHelper sideContainerBackHelper =
+      new MaterialSideContainerBackHelper(this);
+  private final MaterialBackOrchestrator backOrchestrator = new MaterialBackOrchestrator(this);
+  private final DrawerListener backDrawerListener =
+      new SimpleDrawerListener() {
+
+        @Override
+        public void onDrawerOpened(@NonNull View drawerView) {
+          if (drawerView == NavigationView.this) {
+            // Post to ensure our back callback is added after the DrawerLayout back callback.
+            drawerView.post(backOrchestrator::startListeningForBackCallbacksWithPriorityOverlay);
+          }
+        }
+
+        @Override
+        public void onDrawerClosed(@NonNull View drawerView) {
+          if (drawerView == NavigationView.this) {
+            backOrchestrator.stopListeningForBackCallbacks();
+          }
+        }
+      };
 
   public NavigationView(@NonNull Context context) {
     this(context, null);
@@ -160,15 +192,10 @@ public class NavigationView extends ScrimInsetsFrameLayout {
       ViewCompat.setBackground(this, a.getDrawable(R.styleable.NavigationView_android_background));
     }
 
-    // Get the drawer layout corner size and layout gravity to be used to shape the exposed corners
-    // of this view when placed inside a drawer layout.
+    // Get the drawer layout corner size to be used to shape the exposed corners of this view when
+    // placed inside a drawer layout.
     drawerLayoutCornerSize =
         a.getDimensionPixelSize(R.styleable.NavigationView_drawerLayoutCornerSize, 0);
-    layoutGravity = a.getInt(R.styleable.NavigationView_android_layout_gravity, Gravity.NO_GRAVITY);
-    setDrawerLayoutCornerClippingEnabled(
-        a.getBoolean(
-            R.styleable.NavigationView_drawerLayoutCornerClippingEnabled,
-            drawerLayoutCornerClippingEnabled));
 
     // Set the background to a MaterialShapeDrawable if it hasn't been set or if it can be converted
     // to a MaterialShapeDrawable.
@@ -345,34 +372,15 @@ public class NavigationView extends ScrimInsetsFrameLayout {
   }
 
   /**
-   * Gets whether NavigationView will clip itself and its children to its shape appearance and
-   * drawer layout corner size.
+   * Set whether this view should always use canvas clipping to clip to its masked shape when
+   * applicable.
    *
-   * <p>See {@link #setDrawerLayoutCornerClippingEnabled(boolean)}.
-   *
-   * @return true if this view will clip itself and its children to its shape appearance and drawer
-   *     layout corner size
+   * @hide
    */
-  public boolean isDrawerLayoutCornerClippingEnabled() {
-    return drawerLayoutCornerClippingEnabled;
-  }
-
-  /**
-   * Sets whether NavigationView should clip itself and its children to its shape appearance and
-   * drawer layout corner size.
-   *
-   * <p>Clipping uses {@link Canvas#clipPath(Path)} which is expensive and should be used only when
-   * necessary. The most common example of this is when using a header layout with a full bleed
-   * image or other content that would obscure the top end corner shape.
-   *
-   * @param enabled true if navigation view should use canvas clipping to clip itself and all
-   *     children to its shape appearance and drawer layout corner size.
-   */
-  public void setDrawerLayoutCornerClippingEnabled(boolean enabled) {
-    if (drawerLayoutCornerClippingEnabled != enabled) {
-      drawerLayoutCornerClippingEnabled = enabled;
-      invalidate();
-    }
+  @VisibleForTesting
+  @RestrictTo(LIBRARY_GROUP)
+  public void setForceCompatClippingEnabled(boolean enabled) {
+    shapeableDelegate.setForceCompatClippingEnabled(this, enabled);
   }
 
   /**
@@ -383,39 +391,36 @@ public class NavigationView extends ScrimInsetsFrameLayout {
    */
   private void maybeUpdateCornerSizeForDrawerLayout(@Px int width, @Px int height) {
     if (getParent() instanceof DrawerLayout
+        && getLayoutParams() instanceof DrawerLayout.LayoutParams
         && drawerLayoutCornerSize > 0
         && getBackground() instanceof MaterialShapeDrawable) {
-      // Get the absolute gravity of this view and set the top and bottom exposed corner sizes.
+      int layoutGravity = ((DrawerLayout.LayoutParams) getLayoutParams()).gravity;
+      boolean isAbsGravityLeft =
+          GravityCompat.getAbsoluteGravity(layoutGravity, ViewCompat.getLayoutDirection(this))
+              == Gravity.LEFT;
+
+      // Create and set a background to a MaterialShapeDrawable with the gravity edge's corners
+      // set to zero. This is needed in addition to the ShapeableDelegate's clip since the
+      // background of this view will not be clipped when using canvas (,compat) clipping.
       MaterialShapeDrawable background = (MaterialShapeDrawable) getBackground();
-      ShapeAppearanceModel.Builder builder = background.getShapeAppearanceModel().toBuilder();
-      int absGravity =
-          GravityCompat.getAbsoluteGravity(layoutGravity, ViewCompat.getLayoutDirection(this));
-      if (absGravity == Gravity.LEFT) {
-        // Exposed edge is on the right
-        builder.setTopRightCornerSize(drawerLayoutCornerSize);
-        builder.setBottomRightCornerSize(drawerLayoutCornerSize);
+      ShapeAppearanceModel.Builder builder =
+          background.getShapeAppearanceModel().toBuilder()
+              .setAllCornerSizes(drawerLayoutCornerSize);
+      if (isAbsGravityLeft) {
+        builder.setTopLeftCornerSize(0F);
+        builder.setBottomLeftCornerSize(0F);
       } else {
         // Exposed edge is on the left
-        builder.setTopLeftCornerSize(drawerLayoutCornerSize);
-        builder.setBottomLeftCornerSize(drawerLayoutCornerSize);
+        builder.setTopRightCornerSize(0F);
+        builder.setBottomRightCornerSize(0F);
       }
-      background.setShapeAppearanceModel(builder.build());
-
-      if (shapeClipPath == null) {
-        shapeClipPath = new Path();
-      }
-      shapeClipPath.reset();
-      shapeClipBounds.set(0, 0, width, height);
-      ShapeAppearancePathProvider.getInstance()
-          .calculatePath(
-              background.getShapeAppearanceModel(),
-              background.getInterpolation(),
-              shapeClipBounds,
-              shapeClipPath);
-      invalidate();
-    } else {
-      shapeClipPath = null;
-      shapeClipBounds.setEmpty();
+      ShapeAppearanceModel model = builder.build();
+      background.setShapeAppearanceModel(model);
+      shapeableDelegate.onShapeAppearanceChanged(this, model);
+      shapeableDelegate.onMaskChanged(this, new RectF(0, 0, width, height));
+      // Let shapeableDelegate offset the bounds of the edge with zeroed corners so
+      // ViewOutlineProvider can use a symmetrical shape on API 22-32.
+      shapeableDelegate.setOffsetZeroCornerEdgeBoundsEnabled(this, true);
     }
   }
 
@@ -428,6 +433,31 @@ public class NavigationView extends ScrimInsetsFrameLayout {
   protected void onAttachedToWindow() {
     super.onAttachedToWindow();
     MaterialShapeUtils.setParentAbsoluteElevation(this);
+
+    ViewParent parent = getParent();
+    if (parent instanceof DrawerLayout && backOrchestrator.shouldListenForBackCallbacks()) {
+      DrawerLayout drawerLayout = (DrawerLayout) parent;
+      // Make sure there's only ever one listener
+      drawerLayout.removeDrawerListener(backDrawerListener);
+      drawerLayout.addDrawerListener(backDrawerListener);
+    }
+  }
+
+  @Override
+  protected void onDetachedFromWindow() {
+    super.onDetachedFromWindow();
+
+    if (Build.VERSION.SDK_INT < 16) {
+      getViewTreeObserver().removeGlobalOnLayoutListener(onGlobalLayoutListener);
+    } else {
+      getViewTreeObserver().removeOnGlobalLayoutListener(onGlobalLayoutListener);
+    }
+
+    ViewParent parent = getParent();
+    if (parent instanceof DrawerLayout) {
+      DrawerLayout drawerLayout = (DrawerLayout) parent;
+      drawerLayout.removeDrawerListener(backDrawerListener);
+    }
   }
 
   @Override
@@ -529,15 +559,7 @@ public class NavigationView extends ScrimInsetsFrameLayout {
 
   @Override
   protected void dispatchDraw(@NonNull Canvas canvas) {
-    if (shapeClipPath == null || !isDrawerLayoutCornerClippingEnabled()) {
-      super.dispatchDraw(canvas);
-      return;
-    }
-
-    int save = canvas.save();
-    canvas.clipPath(shapeClipPath);
-    super.dispatchDraw(canvas);
-    canvas.restoreToCount(save);
+    shapeableDelegate.maybeClip(canvas, super::dispatchDraw);
   }
 
   /** @hide */
@@ -930,6 +952,64 @@ public class NavigationView extends ScrimInsetsFrameLayout {
     presenter.setSubheaderInsetEnd(subheaderInsetEnd);
   }
 
+  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
+  @Override
+  public void startBackProgress(@NonNull BackEvent backEvent) {
+    requireDrawerLayoutParent();
+    sideContainerBackHelper.startBackProgress(backEvent);
+  }
+
+  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
+  @Override
+  public void updateBackProgress(@NonNull BackEvent backEvent) {
+    Pair<DrawerLayout, DrawerLayout.LayoutParams> drawerLayoutPair = requireDrawerLayoutParent();
+    sideContainerBackHelper.updateBackProgress(backEvent, drawerLayoutPair.second.gravity);
+  }
+
+  @Override
+  public void handleBackInvoked() {
+    Pair<DrawerLayout, DrawerLayout.LayoutParams> drawerLayoutPair = requireDrawerLayoutParent();
+    DrawerLayout drawerLayout = drawerLayoutPair.first;
+
+    BackEvent backEvent = sideContainerBackHelper.onHandleBackInvoked();
+    if (backEvent == null || !BuildCompat.isAtLeastU()) {
+      drawerLayout.closeDrawer(this);
+      return;
+    }
+
+    int gravity = drawerLayoutPair.second.gravity;
+    AnimatorListener scrimCloseAnimatorListener =
+        DrawerLayoutUtils.getScrimCloseAnimatorListener(drawerLayout, this);
+    AnimatorUpdateListener scrimCloseAnimatorUpdateListener =
+        DrawerLayoutUtils.getScrimCloseAnimatorUpdateListener(drawerLayout);
+    sideContainerBackHelper.finishBackProgress(
+        backEvent, gravity, scrimCloseAnimatorListener, scrimCloseAnimatorUpdateListener);
+  }
+
+  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
+  @Override
+  public void cancelBackProgress() {
+    requireDrawerLayoutParent();
+    sideContainerBackHelper.cancelBackProgress();
+  }
+
+  @CanIgnoreReturnValue
+  private Pair<DrawerLayout, DrawerLayout.LayoutParams> requireDrawerLayoutParent() {
+    ViewParent parent = getParent();
+    ViewGroup.LayoutParams layoutParams = getLayoutParams();
+    if (parent instanceof DrawerLayout && layoutParams instanceof DrawerLayout.LayoutParams) {
+      return new Pair<>((DrawerLayout) parent, (DrawerLayout.LayoutParams) layoutParams);
+    } else {
+      throw new IllegalStateException(
+          "NavigationView back progress requires the direct parent view to be a DrawerLayout.");
+    }
+  }
+
+  @VisibleForTesting
+  MaterialSideContainerBackHelper getBackHelper() {
+    return sideContainerBackHelper;
+  }
+
   private MenuInflater getMenuInflater() {
     if (menuInflater == null) {
       menuInflater = new SupportMenuInflater(getContext());
@@ -956,16 +1036,6 @@ public class NavigationView extends ScrimInsetsFrameLayout {
         new int[] {
           baseColor.getColorForState(DISABLED_STATE_SET, defaultColor), colorPrimary, defaultColor
         });
-  }
-
-  @Override
-  protected void onDetachedFromWindow() {
-    super.onDetachedFromWindow();
-    if (Build.VERSION.SDK_INT < 16) {
-      getViewTreeObserver().removeGlobalOnLayoutListener(onGlobalLayoutListener);
-    } else {
-      getViewTreeObserver().removeOnGlobalLayoutListener(onGlobalLayoutListener);
-    }
   }
 
   /**
