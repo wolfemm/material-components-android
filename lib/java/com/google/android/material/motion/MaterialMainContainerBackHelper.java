@@ -83,7 +83,7 @@ public class MaterialMainContainerBackHelper extends MaterialBackAnimationHelper
   }
 
   @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
-  public void startBackProgress(@NonNull BackEvent backEvent, @NonNull View collapsedView) {
+  public void startBackProgress(@NonNull BackEvent backEvent, @Nullable View collapsedView) {
     super.onStartBackProgress(backEvent);
 
     startBackProgress(backEvent.getTouchY(), collapsedView);
@@ -91,17 +91,22 @@ public class MaterialMainContainerBackHelper extends MaterialBackAnimationHelper
 
   @VisibleForTesting
   @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
-  public void startBackProgress(float touchY, @NonNull View collapsedView) {
-    collapsedView.setVisibility(View.INVISIBLE);
-
+  public void startBackProgress(float touchY, @Nullable View collapsedView) {
     initialHideToClipBounds = ViewUtils.calculateRectFromBounds(view);
-    initialHideFromClipBounds = ViewUtils.calculateOffsetRectFromBounds(view, collapsedView);
+    if (collapsedView != null) {
+      initialHideFromClipBounds = ViewUtils.calculateOffsetRectFromBounds(view, collapsedView);
+    }
     initialTouchY = touchY;
   }
 
   @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
-  public void updateBackProgress(@NonNull BackEvent backEvent, float collapsedCornerSize) {
+  public void updateBackProgress(
+      @NonNull BackEvent backEvent, @Nullable View collapsedView, float collapsedCornerSize) {
     super.onUpdateBackProgress(backEvent);
+
+    if (collapsedView != null && collapsedView.getVisibility() != View.INVISIBLE) {
+      collapsedView.setVisibility(View.INVISIBLE);
+    }
 
     boolean leftSwipeEdge = backEvent.getSwipeEdge() == BackEvent.EDGE_LEFT;
     updateBackProgress(
@@ -137,7 +142,7 @@ public class MaterialMainContainerBackHelper extends MaterialBackAnimationHelper
   }
 
   @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
-  public void finishBackProgress(long duration, @NonNull View collapsedView) {
+  public void finishBackProgress(long duration, @Nullable View collapsedView) {
     AnimatorSet resetAnimator = createResetScaleAndTranslationAnimator(collapsedView);
     resetAnimator.setDuration(duration);
     resetAnimator.start();
@@ -146,7 +151,7 @@ public class MaterialMainContainerBackHelper extends MaterialBackAnimationHelper
   }
 
   @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
-  public void cancelBackProgress(@NonNull View collapsedView) {
+  public void cancelBackProgress(@Nullable View collapsedView) {
     super.onCancelBackProgress();
 
     AnimatorSet cancelAnimatorSet = createResetScaleAndTranslationAnimator(collapsedView);
@@ -166,19 +171,22 @@ public class MaterialMainContainerBackHelper extends MaterialBackAnimationHelper
   }
 
   @NonNull
-  private AnimatorSet createResetScaleAndTranslationAnimator(@NonNull View collapsedView) {
+  private AnimatorSet createResetScaleAndTranslationAnimator(@Nullable View collapsedView) {
     AnimatorSet animatorSet = new AnimatorSet();
     animatorSet.playTogether(
         ObjectAnimator.ofFloat(view, View.SCALE_X, 1),
         ObjectAnimator.ofFloat(view, View.SCALE_Y, 1),
         ObjectAnimator.ofFloat(view, View.TRANSLATION_X, 0),
         ObjectAnimator.ofFloat(view, View.TRANSLATION_Y, 0));
-    animatorSet.addListener(new AnimatorListenerAdapter() {
-      @Override
-      public void onAnimationEnd(Animator animation) {
-        collapsedView.setVisibility(View.VISIBLE);
-      }
-    });
+    animatorSet.addListener(
+        new AnimatorListenerAdapter() {
+          @Override
+          public void onAnimationEnd(Animator animation) {
+            if (collapsedView != null) {
+              collapsedView.setVisibility(View.VISIBLE);
+            }
+          }
+        });
     return animatorSet;
   }
 
