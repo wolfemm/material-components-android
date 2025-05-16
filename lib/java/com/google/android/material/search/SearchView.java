@@ -26,7 +26,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.drawable.Drawable;
-import android.os.Build;
+import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -47,22 +47,22 @@ import android.view.accessibility.AccessibilityEvent;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.window.BackEvent;
+import androidx.activity.BackEventCompat;
 import androidx.annotation.ColorInt;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.MenuRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.Px;
-import androidx.annotation.RequiresApi;
 import androidx.annotation.RestrictTo;
 import androidx.annotation.StringRes;
 import androidx.annotation.StyleRes;
 import androidx.annotation.VisibleForTesting;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.core.graphics.Insets;
 import androidx.core.graphics.drawable.DrawableCompat;
-import androidx.core.os.BuildCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.widget.TextViewCompat;
@@ -88,7 +88,6 @@ import java.util.Set;
 
 /**
  * Layout that provides a full screen search view and can be used with {@link SearchBar}.
- *
  *
  * <p>The example below shows how to use the {@link SearchBar} and {@link SearchView} together:
  *
@@ -124,10 +123,15 @@ import java.util.Set;
  *   &lt;/com.google.android.material.search.SearchView&gt;
  * &lt;/androidx.coordinatorlayout.widget.CoordinatorLayout&gt;
  * </pre>
+ *
+ * <p>For more information, see the <a
+ * href="https://github.com/material-components/material-components-android/blob/master/docs/components/Search.md">component
+ * developer guidance</a> and <a href="https://material.io/components/search/overview">design
+ * guidelines</a>.
  */
 @SuppressWarnings("RestrictTo")
-public class SearchView extends FrameLayout implements CoordinatorLayout.AttachedBehavior,
-    MaterialBackHandler {
+public class SearchView extends FrameLayout
+    implements CoordinatorLayout.AttachedBehavior, MaterialBackHandler {
 
   private static final long TALKBACK_FOCUS_CHANGE_DELAY_MS = 100;
   private static final int DEF_STYLE_RES = R.style.Widget_Material3_SearchView;
@@ -141,6 +145,7 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
   final MaterialToolbar toolbar;
   final Toolbar dummyToolbar;
   final TextView searchPrefix;
+  final LinearLayout textContainer;
   final EditText editText;
   final ImageButton clearButton;
   final View divider;
@@ -148,8 +153,10 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
 
   private final boolean layoutInflated;
   private final SearchViewAnimationHelper searchViewAnimationHelper;
-  @NonNull private final MaterialBackOrchestrator backOrchestrator =
-      new MaterialBackOrchestrator(this);
+
+  @NonNull
+  private final MaterialBackOrchestrator backOrchestrator = new MaterialBackOrchestrator(this);
+
   private final boolean backHandlingEnabled;
   private final ElevationOverlayProvider elevationOverlayProvider;
   private final Set<TransitionListener> transitionListeners = new LinkedHashSet<>();
@@ -210,6 +217,7 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
     toolbar = findViewById(R.id.open_search_view_toolbar);
     dummyToolbar = findViewById(R.id.open_search_view_dummy_toolbar);
     searchPrefix = findViewById(R.id.open_search_view_search_prefix);
+    textContainer = findViewById(R.id.open_search_view_text_container);
     editText = findViewById(R.id.open_search_view_edit_text);
     clearButton = findViewById(R.id.open_search_view_clear_button);
     divider = findViewById(R.id.open_search_view_divider);
@@ -245,7 +253,6 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
     updateSoftInputMode();
   }
 
-  @RequiresApi(VERSION_CODES.LOLLIPOP)
   @Override
   public void setElevation(float elevation) {
     super.setElevation(elevation);
@@ -257,6 +264,17 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
     super.onAttachedToWindow();
 
     MaterialShapeUtils.setParentAbsoluteElevation(this);
+    TransitionState state = getCurrentTransitionState();
+    updateModalForAccessibility(state);
+    updateListeningForBackCallbacks(state);
+  }
+
+  @Override
+  protected void onDetachedFromWindow() {
+    super.onDetachedFromWindow();
+
+    setModalForAccessibility(/* isSearchViewModal= */ false);
+    backOrchestrator.stopListeningForBackCallbacks();
   }
 
   @Override
@@ -265,19 +283,22 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
     return new SearchView.Behavior();
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   @Override
-  public void startBackProgress(@NonNull BackEvent backEvent) {
+  public void startBackProgress(@NonNull BackEventCompat backEvent) {
     if (isHiddenOrHiding() || searchBar == null) {
       return;
+    }
+    if (searchBar != null) {
+      searchBar.setPlaceholderText(editText.getText().toString());
     }
     searchViewAnimationHelper.startBackProgress(backEvent);
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   @Override
-  public void updateBackProgress(@NonNull BackEvent backEvent) {
-    if (isHiddenOrHiding() || searchBar == null) {
+  public void updateBackProgress(@NonNull BackEventCompat backEvent) {
+    if (isHiddenOrHiding()
+        || searchBar == null
+        || VERSION.SDK_INT < VERSION_CODES.UPSIDE_DOWN_CAKE) {
       return;
     }
     searchViewAnimationHelper.updateBackProgress(backEvent);
@@ -289,18 +310,21 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
       return;
     }
 
-    BackEvent backEvent = searchViewAnimationHelper.onHandleBackInvoked();
-    if (BuildCompat.isAtLeastU() && searchBar != null && backEvent != null) {
+    BackEventCompat backEvent = searchViewAnimationHelper.onHandleBackInvoked();
+    if (VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE
+        && searchBar != null
+        && backEvent != null) {
       searchViewAnimationHelper.finishBackProgress();
     } else {
       hide();
     }
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   @Override
   public void cancelBackProgress() {
-    if (isHiddenOrHiding() || searchBar == null) {
+    if (isHiddenOrHiding()
+        || searchBar == null
+        || VERSION.SDK_INT < VERSION_CODES.UPSIDE_DOWN_CAKE) {
       return;
     }
     searchViewAnimationHelper.cancelBackProgress();
@@ -454,8 +478,9 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
           DrawableCompat.wrap(
               AppCompatResources.getDrawable(getContext(), navigationIcon).mutate());
       if (toolbar.getNavigationIconTint() != null) {
-        DrawableCompat.setTint(navigationIconDrawable, toolbar.getNavigationIconTint());
+        navigationIconDrawable.setTint(toolbar.getNavigationIconTint());
       }
+      DrawableCompat.setLayoutDirection(navigationIconDrawable, getLayoutDirection());
       toolbar.setNavigationIcon(
           new FadeThroughDrawable(searchBar.getNavigationIcon(), navigationIconDrawable));
       updateNavigationIconProgressIfNeeded();
@@ -490,9 +515,13 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
           boolean isRtl = ViewUtils.isLayoutRtl(toolbar);
           int paddingLeft = isRtl ? initialPadding.end : initialPadding.start;
           int paddingRight = isRtl ? initialPadding.start : initialPadding.end;
-          toolbar.setPadding(
-              paddingLeft + insets.getSystemWindowInsetLeft(), initialPadding.top,
-              paddingRight + insets.getSystemWindowInsetRight(), initialPadding.bottom);
+          Insets systemBarCutoutInsets =
+              insets.getInsets(
+                  WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+          paddingLeft += systemBarCutoutInsets.left;
+          paddingRight += systemBarCutoutInsets.right;
+
+          toolbar.setPadding(paddingLeft, initialPadding.top, paddingRight, initialPadding.bottom);
           return insets;
         });
   }
@@ -505,7 +534,11 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
     ViewCompat.setOnApplyWindowInsetsListener(
         statusBarSpacer,
         (v, insets) -> {
-          int systemWindowInsetTop = insets.getSystemWindowInsetTop();
+          int systemWindowInsetTop =
+              insets.getInsets(
+                      WindowInsetsCompat.Type.systemBars()
+                          | WindowInsetsCompat.Type.displayCutout())
+                  .top;
           setUpStatusBarSpacer(systemWindowInsetTop);
           if (!statusBarSpacerEnabledOverride) {
             setStatusBarSpacerEnabledInternal(systemWindowInsetTop > 0);
@@ -521,8 +554,11 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
     ViewCompat.setOnApplyWindowInsetsListener(
         divider,
         (v, insets) -> {
-          layoutParams.leftMargin = leftMargin + insets.getSystemWindowInsetLeft();
-          layoutParams.rightMargin = rightMargin + insets.getSystemWindowInsetRight();
+          Insets systemBarCutoutInsets =
+              insets.getInsets(
+                  WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+          layoutParams.leftMargin = leftMargin + systemBarCutoutInsets.left;
+          layoutParams.rightMargin = rightMargin + systemBarCutoutInsets.right;
           return insets;
         });
   }
@@ -543,7 +579,7 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
     searchViewAnimationHelper.setSearchBar(searchBar);
     if (searchBar != null) {
       searchBar.setOnClickListener(v -> show());
-      if (BuildCompat.isAtLeastU()) {
+      if (VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
         try {
           searchBar.setHandwritingDelegatorCallback(this::show);
           editText.setIsHandwritingDelegate(true);
@@ -555,6 +591,7 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
     }
     updateNavigationIconIfNeeded();
     setUpBackgroundViewElevationOverlay();
+    updateListeningForBackCallbacks(getCurrentTransitionState());
   }
 
   /**
@@ -781,8 +818,17 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
   }
 
   void setTransitionState(@NonNull TransitionState state) {
+    setTransitionState(state, /* updateModalForAccessibility= */ true);
+  }
+
+  private void setTransitionState(
+      @NonNull TransitionState state, boolean updateModalForAccessibility) {
     if (currentTransitionState.equals(state)) {
       return;
+    }
+
+    if (updateModalForAccessibility) {
+      updateModalForAccessibility(state);
     }
 
     TransitionState previousState = currentTransitionState;
@@ -792,6 +838,22 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
       listener.onStateChanged(this, previousState, state);
     }
 
+    updateListeningForBackCallbacks(state);
+
+    if (searchBar != null && state == TransitionState.HIDDEN) {
+      searchBar.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
+    }
+  }
+
+  private void updateModalForAccessibility(@NonNull TransitionState state) {
+    if (state == TransitionState.SHOWN) {
+      setModalForAccessibility(true);
+    } else if (state == TransitionState.HIDDEN) {
+      setModalForAccessibility(false);
+    }
+  }
+
+  private void updateListeningForBackCallbacks(@NonNull TransitionState state) {
     // Only automatically handle back if we have a search bar to collapse to, and if back handling
     // is enabled for the SearchView.
     if (searchBar != null && backHandlingEnabled) {
@@ -821,7 +883,6 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
       return;
     }
     searchViewAnimationHelper.show();
-    setModalForAccessibility(true);
   }
 
   /**
@@ -835,8 +896,12 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
         || currentTransitionState.equals(TransitionState.HIDING)) {
       return;
     }
-    searchViewAnimationHelper.hide();
-    setModalForAccessibility(false);
+    if (searchBar != null && searchBar.isAttachedToWindow()) {
+      searchBar.setPlaceholderText(editText.getText().toString());
+      searchBar.post(searchViewAnimationHelper::hide);
+    } else {
+      searchViewAnimationHelper.hide();
+    }
   }
 
   /** Updates the visibility of the {@link SearchView} without an animation. */
@@ -844,10 +909,9 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
     boolean wasVisible = rootView.getVisibility() == VISIBLE;
     rootView.setVisibility(visible ? VISIBLE : GONE);
     updateNavigationIconProgressIfNeeded();
-    if (wasVisible != visible) {
-      setModalForAccessibility(visible);
-    }
-    setTransitionState(visible ? TransitionState.SHOWN : TransitionState.HIDDEN);
+    setTransitionState(
+        visible ? TransitionState.SHOWN : TransitionState.HIDDEN,
+        /* updateModalForAccessibility= */ wasVisible != visible);
   }
 
   private void updateNavigationIconProgressIfNeeded() {
@@ -895,9 +959,6 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
     editText.post(
         () -> {
           editText.clearFocus();
-          if (searchBar != null) {
-            searchBar.requestFocus();
-          }
           ViewUtils.hideKeyboard(editText, useWindowInsetsController);
         });
   }
@@ -913,7 +974,7 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
   public void setModalForAccessibility(boolean isSearchViewModal) {
     ViewGroup rootView = (ViewGroup) this.getRootView();
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN && isSearchViewModal) {
+    if (isSearchViewModal) {
       childImportantForAccessibilityMap = new HashMap<>(rootView.getChildCount());
     }
     updateChildImportantForAccessibility(rootView, isSearchViewModal);
@@ -930,9 +991,7 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
    * search results.
    */
   public void setToolbarTouchscreenBlocksFocus(boolean touchscreenBlocksFocus) {
-    if (Build.VERSION.SDK_INT >= VERSION_CODES.LOLLIPOP) {
-      toolbar.setTouchscreenBlocksFocus(touchscreenBlocksFocus);
-    }
+    toolbar.setTouchscreenBlocksFocus(touchscreenBlocksFocus);
   }
 
   @SuppressLint("InlinedApi") // View Compat will handle the differences.
@@ -953,17 +1012,13 @@ public class SearchView extends FrameLayout implements CoordinatorLayout.Attache
         if (childImportantForAccessibilityMap != null
             && childImportantForAccessibilityMap.containsKey(child)) {
           // Restores the original important for accessibility value of the child view.
-          ViewCompat.setImportantForAccessibility(
-              child, childImportantForAccessibilityMap.get(child));
+          child.setImportantForAccessibility(childImportantForAccessibilityMap.get(child));
         }
       } else {
         // Saves the important for accessibility value of the child view.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-          childImportantForAccessibilityMap.put(child, child.getImportantForAccessibility());
-        }
+        childImportantForAccessibilityMap.put(child, child.getImportantForAccessibility());
 
-        ViewCompat.setImportantForAccessibility(
-            child, ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        child.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
       }
     }
   }

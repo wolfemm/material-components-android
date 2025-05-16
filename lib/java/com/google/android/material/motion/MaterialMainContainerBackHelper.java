@@ -31,10 +31,11 @@ import android.content.res.Resources;
 import android.graphics.Rect;
 import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
+import android.util.DisplayMetrics;
 import android.view.RoundedCorner;
 import android.view.View;
 import android.view.WindowInsets;
-import android.window.BackEvent;
+import androidx.activity.BackEventCompat;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -61,7 +62,7 @@ public class MaterialMainContainerBackHelper extends MaterialBackAnimationHelper
   private float initialTouchY;
   @Nullable private Rect initialHideToClipBounds;
   @Nullable private Rect initialHideFromClipBounds;
-  @Nullable private Integer expandedCornerSize;
+  @Nullable private float[] expandedCornerRadii;
 
   public MaterialMainContainerBackHelper(@NonNull View view) {
     super(view);
@@ -82,15 +83,13 @@ public class MaterialMainContainerBackHelper extends MaterialBackAnimationHelper
     return initialHideFromClipBounds;
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
-  public void startBackProgress(@NonNull BackEvent backEvent, @Nullable View collapsedView) {
+  public void startBackProgress(@NonNull BackEventCompat backEvent, @Nullable View collapsedView) {
     super.onStartBackProgress(backEvent);
 
     startBackProgress(backEvent.getTouchY(), collapsedView);
   }
 
   @VisibleForTesting
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   public void startBackProgress(float touchY, @Nullable View collapsedView) {
     initialHideToClipBounds = ViewUtils.calculateRectFromBounds(view);
     if (collapsedView != null) {
@@ -99,26 +98,32 @@ public class MaterialMainContainerBackHelper extends MaterialBackAnimationHelper
     initialTouchY = touchY;
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   public void updateBackProgress(
-      @NonNull BackEvent backEvent, @Nullable View collapsedView, float collapsedCornerSize) {
-    super.onUpdateBackProgress(backEvent);
+      @NonNull BackEventCompat backEvent, @Nullable View collapsedView, float collapsedCornerSize) {
+    if (super.onUpdateBackProgress(backEvent) == null) {
+      return;
+    }
 
     if (collapsedView != null && collapsedView.getVisibility() != View.INVISIBLE) {
       collapsedView.setVisibility(View.INVISIBLE);
     }
 
-    boolean leftSwipeEdge = backEvent.getSwipeEdge() == BackEvent.EDGE_LEFT;
+    boolean leftSwipeEdge = backEvent.getSwipeEdge() == BackEventCompat.EDGE_LEFT;
     updateBackProgress(
         backEvent.getProgress(), leftSwipeEdge, backEvent.getTouchY(), collapsedCornerSize);
   }
 
   @VisibleForTesting
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   public void updateBackProgress(
       float progress, boolean leftSwipeEdge, float touchY, float collapsedCornerSize) {
+    progress = interpolateProgress(progress);
+
     float width = view.getWidth();
     float height = view.getHeight();
+    if (width <= 0f || height <= 0f) {
+      return;
+    }
+
     float scale = lerp(1, MIN_SCALE, progress);
 
     float availableHorizontalSpace = max(0, (width - MIN_SCALE * width) / 2 - minEdgeGap);
@@ -131,17 +136,21 @@ public class MaterialMainContainerBackHelper extends MaterialBackAnimationHelper
     float translationYDirection = Math.signum(yDelta);
     float translationY = AnimationUtils.lerp(0, maxTranslationY, yProgress) * translationYDirection;
 
+    if (Float.isNaN(scale) || Float.isNaN(translationX) || Float.isNaN(translationY)) {
+      return;
+    }
+
     view.setScaleX(scale);
     view.setScaleY(scale);
     view.setTranslationX(translationX);
     view.setTranslationY(translationY);
     if (view instanceof ClippableRoundedCornerLayout) {
       ((ClippableRoundedCornerLayout) view)
-          .updateCornerRadius(lerp(getExpandedCornerSize(), collapsedCornerSize, progress));
+          .updateCornerRadii(
+              lerpCornerRadii(getExpandedCornerRadii(), collapsedCornerSize, progress));
     }
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   public void finishBackProgress(long duration, @Nullable View collapsedView) {
     AnimatorSet resetAnimator = createResetScaleAndTranslationAnimator(collapsedView);
     resetAnimator.setDuration(duration);
@@ -150,9 +159,10 @@ public class MaterialMainContainerBackHelper extends MaterialBackAnimationHelper
     resetInitialValues();
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   public void cancelBackProgress(@Nullable View collapsedView) {
-    super.onCancelBackProgress();
+    if (super.onCancelBackProgress() == null) {
+      return;
+    }
 
     AnimatorSet cancelAnimatorSet = createResetScaleAndTranslationAnimator(collapsedView);
     if (view instanceof ClippableRoundedCornerLayout) {
@@ -194,41 +204,92 @@ public class MaterialMainContainerBackHelper extends MaterialBackAnimationHelper
   private ValueAnimator createCornerAnimator(
       ClippableRoundedCornerLayout clippableRoundedCornerLayout) {
     ValueAnimator cornerAnimator =
-        ValueAnimator.ofFloat(
-            clippableRoundedCornerLayout.getCornerRadius(), getExpandedCornerSize());
+        ValueAnimator.ofObject(
+            (fraction, startValue, endValue) ->
+                lerpCornerRadii((float[]) startValue, (float[]) endValue, fraction),
+            clippableRoundedCornerLayout.getCornerRadii(),
+            getExpandedCornerRadii());
     cornerAnimator.addUpdateListener(
         animation ->
-            clippableRoundedCornerLayout.updateCornerRadius((Float) animation.getAnimatedValue()));
+            clippableRoundedCornerLayout.updateCornerRadii((float[]) animation.getAnimatedValue()));
     return cornerAnimator;
   }
 
-  public int getExpandedCornerSize() {
-    if (expandedCornerSize == null) {
-      expandedCornerSize = isAtTopOfScreen() ? getMaxDeviceCornerRadius() : 0;
+  private static float[] lerpCornerRadii(float[] startValue, float[] endValue, float fraction) {
+    return new float[] {
+      lerp(startValue[0], endValue[0], fraction),
+      lerp(startValue[1], endValue[1], fraction),
+      lerp(startValue[2], endValue[2], fraction),
+      lerp(startValue[3], endValue[3], fraction),
+      lerp(startValue[4], endValue[4], fraction),
+      lerp(startValue[5], endValue[5], fraction),
+      lerp(startValue[6], endValue[6], fraction),
+      lerp(startValue[7], endValue[7], fraction)
+    };
+  }
+
+  private static float[] lerpCornerRadii(float[] startValue, float endValue, float fraction) {
+    return new float[] {
+      lerp(startValue[0], endValue, fraction),
+      lerp(startValue[1], endValue, fraction),
+      lerp(startValue[2], endValue, fraction),
+      lerp(startValue[3], endValue, fraction),
+      lerp(startValue[4], endValue, fraction),
+      lerp(startValue[5], endValue, fraction),
+      lerp(startValue[6], endValue, fraction),
+      lerp(startValue[7], endValue, fraction)
+    };
+  }
+
+  @NonNull
+  public float[] getExpandedCornerRadii() {
+    if (expandedCornerRadii == null) {
+      expandedCornerRadii = calculateExpandedCornerRadii();
     }
-    return expandedCornerSize;
+    return expandedCornerRadii;
   }
 
-  private boolean isAtTopOfScreen() {
-    int[] location = new int[2];
-    view.getLocationOnScreen(location);
-    return location[1] == 0;
+  public void clearExpandedCornerRadii() {
+    expandedCornerRadii = null;
   }
 
-  private int getMaxDeviceCornerRadius() {
+  private float[] calculateExpandedCornerRadii() {
     if (VERSION.SDK_INT >= VERSION_CODES.S) {
       final WindowInsets insets = view.getRootWindowInsets();
       if (insets != null) {
-        return max(
-            max(
-                getRoundedCornerRadius(insets, RoundedCorner.POSITION_TOP_LEFT),
-                getRoundedCornerRadius(insets, RoundedCorner.POSITION_TOP_RIGHT)),
-            max(
-                getRoundedCornerRadius(insets, RoundedCorner.POSITION_BOTTOM_LEFT),
-                getRoundedCornerRadius(insets, RoundedCorner.POSITION_BOTTOM_RIGHT)));
+        DisplayMetrics displayMetrics = view.getResources().getDisplayMetrics();
+        int screenWidth = displayMetrics.widthPixels;
+        int screenHeight = displayMetrics.heightPixels;
+
+        int[] location = new int[2];
+        view.getLocationOnScreen(location);
+        int x = location[0];
+        int y = location[1];
+
+        int width = view.getWidth();
+        int height = view.getHeight();
+
+        int topLeft =
+            x == 0 && y == 0 ? getRoundedCornerRadius(insets, RoundedCorner.POSITION_TOP_LEFT) : 0;
+        int topRight =
+            x + width >= screenWidth && y == 0
+                ? getRoundedCornerRadius(insets, RoundedCorner.POSITION_TOP_RIGHT)
+                : 0;
+        int bottomRight =
+            x + width >= screenWidth && y + height >= screenHeight
+                ? getRoundedCornerRadius(insets, RoundedCorner.POSITION_BOTTOM_RIGHT)
+                : 0;
+        int bottomLeft =
+            x == 0 && y + height >= screenHeight
+                ? getRoundedCornerRadius(insets, RoundedCorner.POSITION_BOTTOM_LEFT)
+                : 0;
+
+        return new float[] {
+          topLeft, topLeft, topRight, topRight, bottomRight, bottomRight, bottomLeft, bottomLeft
+        };
       }
     }
-    return 0;
+    return new float[] {0, 0, 0, 0, 0, 0, 0, 0};
   }
 
   @RequiresApi(VERSION_CODES.S)

@@ -16,12 +16,18 @@ represent an input, attribute, or action.
 
 **Contents**
 
+*   [Design and API Documentation](#design-and-api-documentation)
 *   [Using chips](#using-chips)
 *   [Assist chip](#assist-chip)
 *   [Filter chip](#filter-chip)
 *   [Input chip](#input-chip)
 *   [Suggestion chip](#suggestion-chip)
 *   [Theming chips](#theming-chips)
+
+## Design and API Documentation
+
+*   [Google Material3 Spec](https://material.io/components/chips/overview)
+*   [API reference](https://developer.android.com/reference/com/google/android/material/chip/package-summary)
 
 ## Using chips
 
@@ -170,7 +176,7 @@ following:
 val checkedChipId = chipGroup.checkedChipId // Returns View.NO_ID if singleSelection = false
 val checkedChipIds = chipGroup.checkedChipIds // Returns a list of the selected chips' IDs, if any
 
-chipGroup.setOnCheckedChangeListener { group, checkedId ->
+chipGroup.setOnCheckedStateChangeListener { group, checkedIds ->
     // Responds to child chip checked/unchecked
 }
 ```
@@ -412,85 +418,85 @@ The following is an anatomy diagram of a chip:
 
 #### Container attributes
 
-Element              | Attribute                                                       | Related method(s)                                                                                          | Default value
--------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------
-**Color**            | `app:chipBackgroundColor`                                       | `setChipBackgroundColor`<br/>`setChipBackgroundColorResource`<br/>`getChipBackgroundColor`                 | `?attr/colorOnSurface`
-**Ripple color**     | `app:rippleColor`                                               | `setRippleColor`<br/>`setRippleColorResource`<br/>`getRippleColor`                                         | `?attr/colorOnSecondaryContainer` at 12%
-**Stroke width**     | `app:chipStrokeWidth`                                           | `setStrokeWidth`<br/>`setChipStrokeWidthResource`<br/>`getChipStrokeWidth`                                 | `1dp`
-**Stroke color**     | `app:chipStrokeColor`                                           | `setStrokeColor`<br/>`setChipStrokeColorResource`<br/>`getChipStrokeColor`                                 | `?attr/colorOnSurface`
-**Min height**       | `app:chipMinHeight`                                             | `setChipMinHeight`<br/>`setChipMinHeightResource`<br/>`getChipMinHeight`                                   | `32dp`
-**Padding**          | `app:chipStartPadding`<br/>`app:chipEndPadding`                 | `setChip*Padding`<br/>`setChip*PaddingResource`<br/>`getChip*Padding`                                      | `4dp` (start)<br/>`6dp` (end)
-**Shape**            | `app:shapeAppearance`<br/>`shapeAppearanceOverlay`              | `setShapeAppearanceModel`<br/>`getShapeAppearanceModel`                                                    | `?attr/shapeAppearanceSmallComponent` with 8dp `cornerSize`
-**Min touch target** | `app:chipMinTouchTargetSize`<br/>`app:ensureMinTouchTargetSize` | `ensureAccessibleTouchTarget`<br/>`setEnsureAccessibleTouchTarget`<br/>`shouldEnsureAccessibleTouchTarget` | `48dp`<br/>`true`
-**Checkable**        | `android:checkable`                                             | `setCheckable`<br/>`setCheckableResource`<br/>`isCheckable`                                                | `true` (input, suggestion, filter)
+| Element              | Attribute                                                       | Related method(s)                                                                                          | Default value                                               |
+|----------------------|-----------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------|
+| **Color**            | `app:chipBackgroundColor`                                       | `setChipBackgroundColor`<br/>`setChipBackgroundColorResource`<br/>`getChipBackgroundColor`                 | `?attr/colorOnSurface`                                      |
+| **Ripple color**     | `app:rippleColor`                                               | `setRippleColor`<br/>`setRippleColorResource`<br/>`getRippleColor`                                         | `?attr/colorOnSecondaryContainer` at 12%                    |
+| **Stroke width**     | `app:chipStrokeWidth`                                           | `setStrokeWidth`<br/>`setChipStrokeWidthResource`<br/>`getChipStrokeWidth`                                 | `1dp`                                                       |
+| **Stroke color**     | `app:chipStrokeColor`                                           | `setStrokeColor`<br/>`setChipStrokeColorResource`<br/>`getChipStrokeColor`                                 | `?attr/colorOnSurface`                                      |
+| **Min height**       | `app:chipMinHeight`                                             | `setChipMinHeight`<br/>`setChipMinHeightResource`<br/>`getChipMinHeight`                                   | `32dp`                                                      |
+| **Padding**          | `app:chipStartPadding`<br/>`app:chipEndPadding`                 | `setChip*Padding`<br/>`setChip*PaddingResource`<br/>`getChip*Padding`                                      | `4dp` (start)<br/>`6dp` (end)                               |
+| **Shape**            | `app:shapeAppearance`<br/>`shapeAppearanceOverlay`              | `setShapeAppearanceModel`<br/>`getShapeAppearanceModel`                                                    | `?attr/shapeAppearanceCornerSmall` with 8dp `cornerSize` |
+| **Min touch target** | `app:chipMinTouchTargetSize`<br/>`app:ensureMinTouchTargetSize` | `ensureAccessibleTouchTarget`<br/>`setEnsureAccessibleTouchTarget`<br/>`shouldEnsureAccessibleTouchTarget` | `48dp`<br/>`true`                                           |
+| **Checkable**        | `android:checkable`                                             | `setCheckable`<br/>`setCheckableResource`<br/>`isCheckable`                                                | `true` (input, suggestion, filter)                          |
 
 #### Thumbnail attributes
 
 **Chip icon**
 
-Element        | Attribute                                       | Related method(s)                                                     | Default value
--------------- | ----------------------------------------------- | --------------------------------------------------------------------- | -------------
-**Icon**       | `app:chipIcon`                                  | `setChipIconVisible`<br/>`isChipIconVisible`                          | `null`
-**Visibility** | `app:chipIconVisible`                           | `setChipIcon`<br/>`setChipIconResource`<br/>`getChipIcon`             | `true` (input and assist)
-**Color**      | `app:chipIconTint`                              | `setChipIconTint`<br/>`setChipIconTintResource`<br/>`getChipIconTint` | `null`
-**Size**       | `app:chipIconSize`                              | `setChipIconSize`<br/>`setChipIconSizeResource`<br/>`getChipIconSize` | `18dp`
-**Padding**    | `app:iconStartPadding`<br/>`app:iconEndPadding` | `setIcon*Padding`<br/>`setIcon*PaddingResource`<br/>`getIcon*Padding` | `0dp`, `-2dp` (filter end padding)
+| Element        | Attribute                                       | Related method(s)                                                     | Default value                      |
+|----------------|-------------------------------------------------|-----------------------------------------------------------------------|------------------------------------|
+| **Icon**       | `app:chipIcon`                                  | `setChipIcon`<br/>`setChipIconResource`<br/>`getChipIcon`             | `null`                             |
+| **Visibility** | `app:chipIconVisible`                           | `setChipIconVisible`<br/>`isChipIconVisible`                          | `true` (input and assist)          |
+| **Color**      | `app:chipIconTint`                              | `setChipIconTint`<br/>`setChipIconTintResource`<br/>`getChipIconTint` | `null`                             |
+| **Size**       | `app:chipIconSize`                              | `setChipIconSize`<br/>`setChipIconSizeResource`<br/>`getChipIconSize` | `18dp`                             |
+| **Padding**    | `app:iconStartPadding`<br/>`app:iconEndPadding` | `setIcon*Padding`<br/>`setIcon*PaddingResource`<br/>`getIcon*Padding` | `0dp`, `-2dp` (filter end padding) |
 
 **Checked icon**
 
 If visible, the checked icon overlays the chip icon.
 
-Element        | Attribute                | Related method(s)                                                              | Default value
--------------- | ------------------------ | ------------------------------------------------------------------------------ | -------------
-**Icon**       | `app:checkedIcon`        | `setCheckedIconVisible`<br/>`isCheckedIconVisible`                             | `@drawable/ic_m3_chip_checked_circle`
-**Visibility** | `app:checkedIconVisible` | `setCheckedIcon`<br/>`setCheckedIconResource`<br/>`getCheckedIcon`             | `true` (input, filter)
-**Color**      | `app:checkedIconTint`    | `setCheckedIconTint`<br/>`setCheckedIconTintResource`<br/>`getCheckedIconTint` | `null`
+| Element        | Attribute                | Related method(s)                                                              | Default value                         |
+|----------------|--------------------------|--------------------------------------------------------------------------------|---------------------------------------|
+| **Icon**       | `app:checkedIcon`        | `setCheckedIcon`<br/>`setCheckedIconResource`<br/>`getCheckedIcon`             | `@drawable/ic_m3_chip_checked_circle` |
+| **Visibility** | `app:checkedIconVisible` | `setCheckedIconVisible`<br/>`isCheckedIconVisible`                             | `true` (input, filter)                |
+| **Color**      | `app:checkedIconTint`    | `setCheckedIconTint`<br/>`setCheckedIconTintResource`<br/>`getCheckedIconTint` | `null`                                |
 
 #### Text attributes
 
-Element        | Attribute                                       | Related method(s)                                                           | Default value
--------------- | ----------------------------------------------- | --------------------------------------------------------------------------- | -------------
-**Text label** | `android:text`                                  | `setChipText`<br/>`setChipTextResource`<br/>`getChipText`                   | `null`
-**Color**      | `android:textColor`                             | `setTextColor`<br/>`getTextColors`                                          | `?attr/colorOnSurfaceVariant`
-**Typography** | `android:textAppearance`                        | `setTextAppearance`<br/>`setTextAppearanceResource`<br/>`getTextAppearance` | `?attr/textAppearanceLabelLarge`
-**Padding**    | `app:textStartPadding`<br/>`app:textEndPadding` | `setText*Padding`<br/>`setText*PaddingResource`<br/>`getText*Padding`       | `8dp` (start)<br/>`6dp` (end)
+| Element        | Attribute                                       | Related method(s)                                                           | Default value                    |
+|----------------|-------------------------------------------------|-----------------------------------------------------------------------------|----------------------------------|
+| **Text label** | `android:text`                                  | `setChipText`<br/>`setChipTextResource`<br/>`getChipText`                   | `null`                           |
+| **Color**      | `android:textColor`                             | `setTextColor`<br/>`getTextColors`                                          | `?attr/colorOnSurfaceVariant`    |
+| **Typography** | `android:textAppearance`                        | `setTextAppearance`<br/>`setTextAppearanceResource`<br/>`getTextAppearance` | `?attr/textAppearanceLabelLarge` |
+| **Padding**    | `app:textStartPadding`<br/>`app:textEndPadding` | `setText*Padding`<br/>`setText*PaddingResource`<br/>`getText*Padding`       | `8dp` (start)<br/>`6dp` (end)    |
 
 #### Remove (close) icon attributes
 
-Element                 | Attribute                                                 | Related method(s)                                                                    | Default value
------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------ | -------------
-**Icon**                | `app:closeIcon`                                           | `setCloseIcon`<br/>`setCloseIconResource`<br/>`getCloseIcon`                         | `@drawable/ic_mtrl_chip_close_circle`
-**Visibility**          | `app:closeIconVisible`                                    | `setCloseIconVisible`<br/>`isCloseIconVisible`                                       | `true` for input
-**Color**               | `app:closeIconTint`                                       | `setCloseIconTint`<br/>`setCloseIconTintResource`<br/>`getCloseIconTint`             | `?attr/colorOnSurfaceVariant`
-**Size**                | `app:closeIconSize`                                       | `setCloseIconSize`<br/>`setCloseIconSizeResource`<br/>`getCloseIconSize`             | `18dp`
-**Padding**             | `app:closeIconStartPadding`<br/>`app:closeIconEndPadding` | `setCloseIcon*Padding`<br/>`setCloseIcon*PaddingResource`<br/>`getCloseIcon*Padding` | `4dp` input end padding
-**Content description** | N/A                                                       | `setCloseIconContentDescription`<br/>`getCloseIconContentDescription`                | `@string/mtrl_chip_close_icon_content_description`
+| Element                 | Attribute                                                 | Related method(s)                                                                    | Default value                                      |
+|-------------------------|-----------------------------------------------------------|--------------------------------------------------------------------------------------|----------------------------------------------------|
+| **Icon**                | `app:closeIcon`                                           | `setCloseIcon`<br/>`setCloseIconResource`<br/>`getCloseIcon`                         | `@drawable/ic_mtrl_chip_close_circle`              |
+| **Visibility**          | `app:closeIconVisible`                                    | `setCloseIconVisible`<br/>`isCloseIconVisible`                                       | `true` for input                                   |
+| **Color**               | `app:closeIconTint`                                       | `setCloseIconTint`<br/>`setCloseIconTintResource`<br/>`getCloseIconTint`             | `?attr/colorOnSurfaceVariant`                      |
+| **Size**                | `app:closeIconSize`                                       | `setCloseIconSize`<br/>`setCloseIconSizeResource`<br/>`getCloseIconSize`             | `18dp`                                             |
+| **Padding**             | `app:closeIconStartPadding`<br/>`app:closeIconEndPadding` | `setCloseIcon*Padding`<br/>`setCloseIcon*PaddingResource`<br/>`getCloseIcon*Padding` | `4dp` input end padding                            |
+| **Content description** | N/A                                                       | `setCloseIconContentDescription`<br/>`getCloseIconContentDescription`                | `@string/mtrl_chip_close_icon_content_description` |
 
 #### `ChipGroup` attributes
 
-Element       | Attribute                                                                   | Related method(s)                                             | Default value
-------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------- | -------------
-**Layout**    | `app:singleLine`                                                            | `setSingleLine`<br/>`isSingleLine`                            | `false`
-**Selection** | `app:singleSelection`<br/>`app:selectionRequired`                           | `setSingleSelection*`<br/>`isSingleSelection*`                | `false`<br/>`false`
-**Spacing**   | `app:chipSpacing`<br/>`app:chipSpacingHorizontal`<br/>`chipSpacingVertical` | `setSpacing*`<br/>`setChipSpacing*Resource`<br/>`getSpacing*` | `8dp`
+| Element       | Attribute                                                                   | Related method(s)                                             | Default value       |
+|---------------|-----------------------------------------------------------------------------|---------------------------------------------------------------|---------------------|
+| **Layout**    | `app:singleLine`                                                            | `setSingleLine`<br/>`isSingleLine`                            | `false`             |
+| **Selection** | `app:singleSelection`<br/>`app:selectionRequired`                           | `setSingleSelection*`<br/>`isSingleSelection*`                | `false`<br/>`false` |
+| **Spacing**   | `app:chipSpacing`<br/>`app:chipSpacingHorizontal`<br/>`chipSpacingVertical` | `setSpacing*`<br/>`setChipSpacing*Resource`<br/>`getSpacing*` | `8dp`               |
 
 #### Styles
 
-Element                         | Style
-------------------------------- | ----------------------------------
-**Default style (assist chip)** | `Widget.Material3.Chip.Assist`
-**Input chip**                  | `Widget.Material3.Chip.Input`
-**Suggestion chip**             | `Widget.Material3.Chip.Suggestion`
-**Filter chip**                 | `Widget.Material3.Chip.Filter`
-**`ChipGroup` style**           | `Widget.Material3.ChipGroup`
+| Element                         | Style                              |
+|---------------------------------|------------------------------------|
+| **Default style (assist chip)** | `Widget.Material3.Chip.Assist`     |
+| **Input chip**                  | `Widget.Material3.Chip.Input`      |
+| **Suggestion chip**             | `Widget.Material3.Chip.Suggestion` |
+| **Filter chip**                 | `Widget.Material3.Chip.Filter`     |
+| **`ChipGroup` style**           | `Widget.Material3.ChipGroup`       |
 
 #### Theme attributes
 
-Element            | Theme attribute             | Default style
------------------- | --------------------------- | -------------
-**`Chip`**         | `?attr/chipStyle`           | `Widget.Material3.Chip.Assist`
-**`ChipGroup`**    | `?attr/chipGroupStyle`      | `Widget.Material3.ChipGroup`
-**`ChipDrawable`** | `?attr/chipStandaloneStyle` | `Widget.Material3.Chip.Input`
+| Element            | Theme attribute             | Default style                  |
+|--------------------|-----------------------------|--------------------------------|
+| **`Chip`**         | `?attr/chipStyle`           | `Widget.Material3.Chip.Assist` |
+| **`ChipGroup`**    | `?attr/chipGroupStyle`      | `Widget.Material3.ChipGroup`   |
+| **`ChipDrawable`** | `?attr/chipStandaloneStyle` | `Widget.Material3.Chip.Input`  |
 
 See the full list of
 [styles](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/chip/res/values/styles.xml)
@@ -530,7 +536,7 @@ theme to all chips and affects other components:
     ...
     <item name="colorOnSurface">@color/shrine_pink_100</item>
     <item name="textAppearanceBodyMedium">@style/TextAppearance.App.BodyMedium</item>
-    <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.App.SmallComponent</item>
+    <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.App.Corner.Small</item>
     <item name="chipStyle">@style/Widget.App.Chip</item>
 </style>
 
@@ -548,7 +554,7 @@ theme to all chips and affects other components:
     <item name="android:fontFamily">@font/rubik_regular</item>
 </style>
 
-<style name="ShapeAppearance.App.SmallComponent" parent="ShapeAppearance.Material3.SmallComponent">
+<style name="ShapeAppearance.App.Corner.Small" parent="ShapeAppearance.Material3.Corner.Small">
     <item name="cornerFamily">cut</item>
     <item name="cornerSize">4dp</item>
 </style>
@@ -575,12 +581,12 @@ the theme to all chips but does not affect other components:
 <style name="Widget.App.Chip" parent="Widget.Material3.Chip.Input">
     <item name="materialThemeOverlay">@style/ThemeOverlay.App.Chip</item>
     <item name="android:textAppearance">@style/TextAppearance.App.BodyMedium</item>
-    <item name="shapeAppearance">@style/ShapeAppearance.App.SmallComponent</item>
+    <item name="shapeAppearance">@style/ShapeAppearance.App.Corner.Small</item>
     ...
 </style>
 
 <style name="ThemeOverlay.App.Chip" parent="">
-    <item name="colorOnSurface">@color/shrine_pink_900</item>
+    <item name="colorOnSurfaceVariant">@color/shrine_pink_900</item>
 </style>
 ```
 
@@ -589,5 +595,5 @@ Use the style in the layout, which affects only specific chips:
 ```xml
 <com.google.android.material.chip.Chip
       ...
-      style="@style/Widget.App.Chip."  />
+      style="@style/Widget.App.Chip"  />
 ```

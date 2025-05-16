@@ -17,12 +17,18 @@ represents the primary action of a screen.
 
 **Contents**
 
+*   [Design and API Documentation](#design-and-api-documentation)
 *   [Using FABs](#using-fabs)
 *   [FABs](#fabs)
 *   [Small FABs](#small-fabs)
 *   [Large FABs](#large-fabs)
 *   [Extended FABs](#extended-fabs)
 *   [Theming FABs](#theming-fabs)
+
+## Design and API Documentation
+
+*   [Google Material3 Spec](https://material.io/components/floating-action-button/overview)
+*   [API reference](https://developer.android.com/reference/com/google/android/material/floatingactionbutton/package-summary)
 
 ## Using FABs
 
@@ -108,6 +114,11 @@ If you'd like to use the small FAB, apply one of these style attributes:
 *   `?attr/floatingActionButtonSmallSecondaryStyle`
 *   `?attr/floatingActionButtonSmallTertiaryStyle`
 *   `?attr/floatingActionButtonSmallSurfaceStyle`
+
+If you'd like to use the medium FAB, apply this style with the corresponding
+color theme overlay via `materialThemeOverlay`:
+
+*   `?attr/floatingActionButtonMediumStyle`
 
 If you'd like to use the large FAB, apply one of these style attributes:
 
@@ -286,7 +297,7 @@ A large FAB has a container and an icon.
 1.  Container
 1.  Icon
 
-### Regular, small, and large FAB key properties
+### Regular, small, medium, and large FAB key properties
 
 #### Container attributes
 
@@ -339,6 +350,26 @@ API and source code:
 *   `ExtendedFloatingActionButton`
     *   [Class description](https://developer.android.com/reference/com/google/android/material/floatingactionbutton/ExtendedFloatingActionButton)
     *   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/floatingactionbutton/ExtendedFloatingActionButton.java)
+
+### Sizing Extended FABs
+
+The `ExtendedFloatingActionButton` will be sized dynamically based on its
+contents (icon and label) and paddings. If a bigger fixed size is preferred, you
+may use `android:minWidth` and `android:minHeight` attributes.
+
+In Material3 themes, styles in 3 different sizes are provided:
+
+*   Small - `?attr/extendedFloatingActionButtonSmallStyle` (or
+    `?attr/extendedFloatingActionButton`,
+    `?attr/extendedFloatingActionButtonPrimaryStyle`,
+    `?attr/extendedFloatingActionButtonSecondaryStyle`,
+    `?attr/extendedFloatingActionButtonTertiaryStyle`,
+    `?attr/extendedFloatingActionButtonSurfaceStyle`)
+*   Medium - `?attr/extendedFloatingActionButtonMediumStyle`
+*   Large - `?attr/extendedFloatingActionButtonLargeStyle`
+
+**Note:** If you are using the extending/collapsing feature with custom height,
+please also consider to set the `collapsedSize` attribute to the same height.
 
 ### Extended FAB example
 

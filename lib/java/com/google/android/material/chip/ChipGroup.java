@@ -33,7 +33,6 @@ import androidx.annotation.Dimension;
 import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.view.ViewCompat;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat.CollectionInfoCompat;
 import com.google.android.material.internal.CheckableGroup;
@@ -56,6 +55,11 @@ import java.util.Set;
  * <p>When a chip is added to a chip group, its checked state will be preserved. If the chip group
  * is in the single selection mode and there is an existing checked chip when another checked chip
  * is added, the existing checked chip will be unchecked to maintain the single selection rule.
+ *
+ * <p>For more information, see the <a
+ * href="https://github.com/material-components/material-components-android/blob/master/docs/components/Chip.md">component
+ * developer guidance</a> and <a href="https://material.io/components/chips/overview">design
+ * guidelines</a>.
  */
 public class ChipGroup extends FlowLayout {
 
@@ -166,7 +170,7 @@ public class ChipGroup extends FlowLayout {
         });
     super.setOnHierarchyChangeListener(passThroughListener);
 
-    ViewCompat.setImportantForAccessibility(this, ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_YES);
+    setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
   }
 
   @Override
@@ -519,7 +523,7 @@ public class ChipGroup extends FlowLayout {
         int id = child.getId();
         // generates an id if it's missing
         if (id == View.NO_ID) {
-          id = ViewCompat.generateViewId();
+          id = View.generateViewId();
           child.setId(id);
         }
         checkableGroup.addCheckable((Chip) child);

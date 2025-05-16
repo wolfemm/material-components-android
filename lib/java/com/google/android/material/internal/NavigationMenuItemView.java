@@ -34,7 +34,9 @@ import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewStub;
+import android.view.accessibility.AccessibilityEvent;
 import android.widget.CheckedTextView;
 import android.widget.FrameLayout;
 import androidx.annotation.Dimension;
@@ -45,7 +47,6 @@ import androidx.core.content.res.ResourcesCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.core.view.AccessibilityDelegateCompat;
 import androidx.core.view.ViewCompat;
-import androidx.core.view.accessibility.AccessibilityEventCompat;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.core.widget.TextViewCompat;
 
@@ -60,6 +61,8 @@ public class NavigationMenuItemView extends ForegroundLinearLayout implements Me
   private boolean needsEmptyIcon;
 
   boolean checkable;
+
+  boolean isBold = true;
 
   private final CheckedTextView textView;
 
@@ -99,7 +102,6 @@ public class NavigationMenuItemView extends ForegroundLinearLayout implements Me
     LayoutInflater.from(context).inflate(R.layout.design_navigation_menu_item, this, true);
     setIconSize(context.getResources().getDimensionPixelSize(R.dimen.design_navigation_icon_size));
     textView = findViewById(R.id.design_menu_item_text);
-    textView.setDuplicateParentStateEnabled(true);
     ViewCompat.setAccessibilityDelegate(textView, accessibilityDelegate);
   }
 
@@ -113,7 +115,7 @@ public class NavigationMenuItemView extends ForegroundLinearLayout implements Me
     setVisibility(itemData.isVisible() ? VISIBLE : GONE);
 
     if (getBackground() == null) {
-      ViewCompat.setBackground(this, createDefaultBackground());
+      setBackground(createDefaultBackground());
     }
 
     setCheckable(itemData.isCheckable());
@@ -125,6 +127,11 @@ public class NavigationMenuItemView extends ForegroundLinearLayout implements Me
     setContentDescription(itemData.getContentDescription());
     TooltipCompat.setTooltipText(this, itemData.getTooltipText());
     adjustAppearance();
+  }
+
+  public void initialize(@NonNull MenuItemImpl itemData, boolean isBold) {
+    this.isBold = isBold;
+    initialize(itemData, 0);
   }
 
   private boolean shouldExpandActionArea() {
@@ -166,6 +173,10 @@ public class NavigationMenuItemView extends ForegroundLinearLayout implements Me
             (FrameLayout)
                 ((ViewStub) findViewById(R.id.design_menu_item_action_area_stub)).inflate();
       }
+      // Make sure to remove the existing parent if the View is reused
+      if (actionView.getParent() != null) {
+        ((ViewGroup) actionView.getParent()).removeView(actionView);
+      }
       actionArea.removeAllViews();
       actionArea.addView(actionView);
     }
@@ -201,7 +212,7 @@ public class NavigationMenuItemView extends ForegroundLinearLayout implements Me
     if (this.checkable != checkable) {
       this.checkable = checkable;
       accessibilityDelegate.sendAccessibilityEvent(
-          textView, AccessibilityEventCompat.TYPE_WINDOW_CONTENT_CHANGED);
+          textView, AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
     }
   }
 
@@ -210,7 +221,8 @@ public class NavigationMenuItemView extends ForegroundLinearLayout implements Me
     refreshDrawableState();
     textView.setChecked(checked);
     // TODO(b/246765947): Use component tokens to control font weight
-    textView.setTypeface(textView.getTypeface(), checked ? Typeface.BOLD : Typeface.NORMAL);
+    textView.setTypeface(
+        textView.getTypeface(), checked && isBold ? Typeface.BOLD : Typeface.NORMAL);
   }
 
   @Override
@@ -222,7 +234,7 @@ public class NavigationMenuItemView extends ForegroundLinearLayout implements Me
       if (hasIconTintList) {
         Drawable.ConstantState state = icon.getConstantState();
         icon = DrawableCompat.wrap(state == null ? icon : state.newDrawable()).mutate();
-        DrawableCompat.setTintList(icon, iconTintList);
+        icon.setTintList(iconTintList);
       }
       icon.setBounds(0, 0, iconSize, iconSize);
     } else if (needsEmptyIcon) {
@@ -236,7 +248,7 @@ public class NavigationMenuItemView extends ForegroundLinearLayout implements Me
       }
       icon = emptyDrawable;
     }
-    TextViewCompat.setCompoundDrawablesRelative(textView, icon, null, null, null);
+    textView.setCompoundDrawablesRelative(icon, null, null, null);
   }
 
   public void setIconSize(@Dimension int iconSize) {

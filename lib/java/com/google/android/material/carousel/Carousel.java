@@ -16,8 +16,26 @@
 
 package com.google.android.material.carousel;
 
+import androidx.annotation.RestrictTo;
+import androidx.annotation.RestrictTo.Scope;
+import com.google.android.material.carousel.CarouselLayoutManager.Alignment;
+
 /** An interface that defines a widget that can be configured as a Carousel. */
-interface Carousel {
+@RestrictTo(Scope.LIBRARY_GROUP)
+public interface Carousel {
+
   /** Gets the width of the carousel container. */
   int getContainerWidth();
+
+  /** Gets the height of the carousel container. */
+  int getContainerHeight();
+
+  /** Whether or not the orientation is horizontal.  */
+  boolean isHorizontal();
+
+  /** Gets the alignment of the carousel.  */
+  @Alignment int getCarouselAlignment();
+
+  /** Gets the number of items in the carousel. */
+  int getItemCount();
 }

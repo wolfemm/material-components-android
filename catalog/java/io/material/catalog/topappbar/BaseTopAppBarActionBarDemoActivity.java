@@ -120,6 +120,7 @@ public abstract class BaseTopAppBarActionBarDemoActivity extends DemoActivity {
     return false;
   }
 
+  // Disable edge to edge due to that causing glitches with the status bar during action mode.
   @Override
   protected boolean shouldApplyEdgeToEdgePreference() {
     return false;

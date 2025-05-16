@@ -24,12 +24,11 @@ import android.graphics.Paint;
 import android.graphics.Paint.Style;
 import android.graphics.Path;
 import android.graphics.Path.Direction;
-import android.os.Build.VERSION;
-import android.os.Build.VERSION_CODES;
 import androidx.appcompat.widget.AppCompatTextView;
 import android.text.format.Formatter;
 import android.util.AttributeSet;
 import android.util.TypedValue;
+import androidx.annotation.NonNull;
 import com.google.common.collect.EvictingQueue;
 import java.util.Queue;
 
@@ -59,9 +58,7 @@ public final class MemoryView extends AppCompatTextView {
 
   public MemoryView(Context context, AttributeSet attrs, int defStyleAttr) {
     super(context, attrs, defStyleAttr);
-    if (VERSION.SDK_INT >= VERSION_CODES.JELLY_BEAN_MR1) {
-      setGravity(TEXT_ALIGNMENT_CENTER);
-    }
+    setGravity(TEXT_ALIGNMENT_CENTER);
 
     paint.setStyle(Style.FILL_AND_STROKE);
     paint.setStrokeWidth(STROKE_WIDTH);
@@ -127,13 +124,22 @@ public final class MemoryView extends AppCompatTextView {
     TypedValue typedValue = new TypedValue();
     getContext()
         .getTheme()
-        .resolveAttribute(R.attr.colorPrimary, typedValue, true);
+        .resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true);
 
     int colorPrimary = typedValue.data;
     paint.setColor(colorPrimary);
   }
 
-  public void refreshMemStats(Runtime runtime) {
+  /** A wrapper around {@link Runtime} to allow mocking by tests. */
+  interface RuntimeWrapper {
+    long maxMemory();
+
+    long totalMemory();
+
+    long freeMemory();
+  }
+
+  public void refreshMemStats(@NonNull RuntimeWrapper runtime) {
     maxMemoryInBytes = runtime.maxMemory();
     long availableMemInBytes = maxMemoryInBytes - (runtime.totalMemory() - runtime.freeMemory());
     long usedMemInBytes = maxMemoryInBytes - availableMemInBytes;

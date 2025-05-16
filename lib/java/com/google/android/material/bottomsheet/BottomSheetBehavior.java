@@ -29,11 +29,11 @@ import android.animation.ValueAnimator.AnimatorUpdateListener;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.TypedArray;
-import android.os.Build;
 import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.util.SparseIntArray;
@@ -49,7 +49,7 @@ import android.view.ViewGroup.MarginLayoutParams;
 import android.view.ViewParent;
 import android.view.WindowInsets;
 import android.view.accessibility.AccessibilityEvent;
-import android.window.BackEvent;
+import androidx.activity.BackEventCompat;
 import androidx.annotation.FloatRange;
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
@@ -63,7 +63,6 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams;
 import androidx.core.graphics.Insets;
 import androidx.core.math.MathUtils;
-import androidx.core.os.BuildCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
@@ -92,6 +91,11 @@ import java.util.Map;
  * <p>To send useful accessibility events, set a title on bottom sheets that are windows or are
  * window-like. For BottomSheetDialog use {@link BottomSheetDialog#setTitle(int)}, and for
  * BottomSheetDialogFragment use {@link ViewCompat#setAccessibilityPaneTitle(View, CharSequence)}.
+ *
+ * <p>For more information, see the <a
+ * href="https://github.com/material-components/material-components-android/blob/master/docs/components/BottomSheet.md">component
+ * developer guidance</a> and <a
+ * href="https://material.io/components/bottom-sheets/overview">design guidelines</a>.
  */
 public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behavior<V>
     implements MaterialBackHandler {
@@ -302,6 +306,9 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
 
   private boolean draggable = true;
 
+  private boolean draggableOnNestedScroll = true;
+  private boolean draggableOnNestedScrollLastDragIgnored;
+
   @State int state = STATE_COLLAPSED;
 
   @State int lastStableState = STATE_COLLAPSED;
@@ -322,6 +329,7 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
 
   @Nullable WeakReference<V> viewRef;
   @Nullable WeakReference<View> accessibilityDelegateViewRef;
+  @Nullable WeakReference<View> dragHandleViewRef;
 
   @Nullable WeakReference<View> nestedScrollingChildRef;
 
@@ -362,9 +370,7 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
     createMaterialShapeDrawableIfNeeded(context);
     createShapeValueAnimator();
 
-    if (VERSION.SDK_INT >= VERSION_CODES.LOLLIPOP) {
-      this.elevation = a.getDimension(R.styleable.BottomSheetBehavior_Layout_android_elevation, -1);
-    }
+    this.elevation = a.getDimension(R.styleable.BottomSheetBehavior_Layout_android_elevation, -1);
 
     if (a.hasValue(R.styleable.BottomSheetBehavior_Layout_android_maxWidth)) {
       setMaxWidth(
@@ -394,6 +400,9 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
     setSkipCollapsed(
         a.getBoolean(R.styleable.BottomSheetBehavior_Layout_behavior_skipCollapsed, false));
     setDraggable(a.getBoolean(R.styleable.BottomSheetBehavior_Layout_behavior_draggable, true));
+    setDraggableOnNestedScroll(
+        a.getBoolean(
+            R.styleable.BottomSheetBehavior_Layout_behavior_draggableOnNestedScroll, true));
     setSaveFlags(a.getInt(R.styleable.BottomSheetBehavior_Layout_behavior_saveFlags, SAVE_NONE));
     setHalfExpandedRatio(
         a.getFloat(R.styleable.BottomSheetBehavior_Layout_behavior_halfExpandedRatio, 0.5f));
@@ -535,7 +544,7 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
   @Override
   public boolean onLayoutChild(
       @NonNull CoordinatorLayout parent, @NonNull final V child, int layoutDirection) {
-    if (ViewCompat.getFitsSystemWindows(parent) && !ViewCompat.getFitsSystemWindows(child)) {
+    if (parent.getFitsSystemWindows() && !child.getFitsSystemWindows()) {
       child.setFitsSystemWindows(true);
     }
 
@@ -550,17 +559,15 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
       // Only set MaterialShapeDrawable as background if shapeTheming is enabled, otherwise will
       // default to android:background declared in styles or layout.
       if (materialShapeDrawable != null) {
-        ViewCompat.setBackground(child, materialShapeDrawable);
+        child.setBackground(materialShapeDrawable);
         // Use elevation attr if set on bottomsheet; otherwise, use elevation of child view.
-        materialShapeDrawable.setElevation(
-            elevation == -1 ? ViewCompat.getElevation(child) : elevation);
+        materialShapeDrawable.setElevation(elevation == -1 ? child.getElevation() : elevation);
       } else if (backgroundTint != null) {
         ViewCompat.setBackgroundTintList(child, backgroundTint);
       }
       updateAccessibilityActions();
-      if (ViewCompat.getImportantForAccessibility(child)
-          == ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_AUTO) {
-        ViewCompat.setImportantForAccessibility(child, ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_YES);
+      if (child.getImportantForAccessibility() == View.IMPORTANT_FOR_ACCESSIBILITY_AUTO) {
+        child.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
       }
     }
     if (viewDragHelper == null) {
@@ -643,10 +650,11 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
         // Only intercept nested scrolling events here if the view not being moved by the
         // ViewDragHelper.
         if (state != STATE_SETTLING) {
-          View scroll = nestedScrollingChildRef != null ? nestedScrollingChildRef.get() : null;
-          if (scroll != null && parent.isPointInChildBounds(scroll, initialX, initialY)) {
+          if (isTouchingScrollingChild(parent, initialX, initialY)) {
             activePointerId = event.getPointerId(event.getActionIndex());
-            touchingScrollingChild = true;
+            if (!isTouchingDragHandle(parent, initialX, initialY)) {
+              touchingScrollingChild = true;
+            }
           }
         }
         ignoreEvents =
@@ -737,7 +745,15 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
     }
     int currentTop = child.getTop();
     int newTop = currentTop - dy;
-    if (dy > 0) { // Upward
+    if (dy > 0) { // Upward swipe
+      if (!nestedScrolled
+          && !draggableOnNestedScroll
+          && target == scrollingChild
+          && target.canScrollVertically(1)) {
+        // Prevent dragging if draggableOnNestedScroll=false and we can scroll the scrolling child.
+        draggableOnNestedScrollLastDragIgnored = true;
+        return;
+      }
       if (newTop < getExpandedOffset()) {
         consumed[1] = currentTop - getExpandedOffset();
         ViewCompat.offsetTopAndBottom(child, -consumed[1]);
@@ -752,8 +768,14 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
         ViewCompat.offsetTopAndBottom(child, -dy);
         setStateInternal(STATE_DRAGGING);
       }
-    } else if (dy < 0) { // Downward
-      if (!target.canScrollVertically(-1)) {
+    } else if (dy < 0) { // Downward swipe
+      boolean canScrollUp = target.canScrollVertically(-1);
+      if (!nestedScrolled && !draggableOnNestedScroll && target == scrollingChild && canScrollUp) {
+        // Prevent dragging if draggableOnNestedScroll=false and we can scroll the scrolling child.
+        draggableOnNestedScrollLastDragIgnored = true;
+        return;
+      }
+      if (!canScrollUp) {
         if (newTop <= collapsedOffset || canBeHiddenByDragging()) {
           if (!draggable) {
             // Prevent dragging
@@ -773,6 +795,7 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
     dispatchOnSlide(child.getTop());
     lastNestedScrollDy = dy;
     nestedScrolled = true;
+    draggableOnNestedScrollLastDragIgnored = false;
   }
 
   @Override
@@ -873,7 +896,7 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
 
     if (isNestedScrollingCheckEnabled() && nestedScrollingChildRef != null) {
       return target == nestedScrollingChildRef.get()
-          && (state != STATE_EXPANDED
+          && ((state != STATE_EXPANDED && !draggableOnNestedScrollLastDragIgnored)
               || super.onNestedPreFling(coordinatorLayout, child, target, velocityX, velocityY));
     } else {
       return false;
@@ -1166,7 +1189,7 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
   }
 
   /**
-   * Sets whether this bottom sheet is can be collapsed/expanded by dragging. Note: When disabling
+   * Sets whether this bottom sheet can be collapsed/expanded by dragging. Note: When disabling
    * dragging, an app will require to implement a custom way to expand/collapse the bottom sheet
    *
    * @param draggable {@code false} to prevent dragging the sheet to collapse and expand
@@ -1180,7 +1203,23 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
     return draggable;
   }
 
-  /*
+  /**
+   * Sets whether this bottom sheet can be collapsed/expanded by dragging on the nested scrolling
+   * child view. Default is true.
+   *
+   * @param draggableOnNestedScroll {@code false} to prevent dragging the nested scrolling child
+   * view to collapse and expand the sheet
+   * @attr ref com.google.android.material.R.styleable#BottomSheetBehavior_Layout_behavior_draggableOnNestedScroll
+   */
+  public void setDraggableOnNestedScroll(boolean draggableOnNestedScroll) {
+    this.draggableOnNestedScroll = draggableOnNestedScroll;
+  }
+
+  public boolean isDraggableOnNestedScroll() {
+    return draggableOnNestedScroll;
+  }
+
+  /**
    * Sets the velocity threshold considered significant enough to trigger a slide
    * to the next stable state.
    *
@@ -1192,7 +1231,7 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
     this.significantVelocityThreshold = significantVelocityThreshold;
   }
 
-  /*
+  /**
    * Returns the significant velocity threshold.
    *
    * @see #setSignificantVelocityThreshold(int)
@@ -1341,7 +1380,7 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
 
   private boolean isLayouting(V child) {
     ViewParent parent = child.getParent();
-    return parent != null && parent.isLayoutRequested() && ViewCompat.isAttachedToWindow(child);
+    return parent != null && parent.isLayoutRequested() && child.isAttachedToWindow();
   }
 
   /**
@@ -1444,8 +1483,8 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
       if (interpolatorAnimator.isRunning()) {
         interpolatorAnimator.reverse();
       } else {
+        float from = materialShapeDrawable.getInterpolation();
         float to = removeCorners ? calculateInterpolationWithCornersRemoved() : 1f;
-        float from = 1f - to;
         interpolatorAnimator.setFloatValues(from, to);
         interpolatorAnimator.start();
       }
@@ -1493,6 +1532,20 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
       }
     }
     return 0;
+  }
+
+  private boolean isTouchingScrollingChild(
+      @NonNull CoordinatorLayout parent, int xCoordinate, int yCoordinate) {
+    View scrollingChild = nestedScrollingChildRef != null ? nestedScrollingChildRef.get() : null;
+    return scrollingChild != null
+        && parent.isPointInChildBounds(scrollingChild, xCoordinate, yCoordinate);
+  }
+
+  private boolean isTouchingDragHandle(
+      @NonNull CoordinatorLayout parent, int xCoordinate, int yCoordinate) {
+    View dragHandleView = dragHandleViewRef != null ? dragHandleViewRef.get() : null;
+    return dragHandleView != null
+        && parent.isPointInChildBounds(dragHandleView, xCoordinate, yCoordinate);
   }
 
   private boolean isAtTopOfScreen() {
@@ -1588,18 +1641,16 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
     return Math.abs(newTop - collapsedOffset) / (float) peek > HIDE_THRESHOLD;
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   @Override
-  public void startBackProgress(@NonNull BackEvent backEvent) {
+  public void startBackProgress(@NonNull BackEventCompat backEvent) {
     if (bottomContainerBackHelper == null) {
       return;
     }
     bottomContainerBackHelper.startBackProgress(backEvent);
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   @Override
-  public void updateBackProgress(@NonNull BackEvent backEvent) {
+  public void updateBackProgress(@NonNull BackEventCompat backEvent) {
     if (bottomContainerBackHelper == null) {
       return;
     }
@@ -1611,8 +1662,8 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
     if (bottomContainerBackHelper == null) {
       return;
     }
-    BackEvent backEvent = bottomContainerBackHelper.onHandleBackInvoked();
-    if (backEvent == null || !BuildCompat.isAtLeastU()) {
+    BackEventCompat backEvent = bottomContainerBackHelper.onHandleBackInvoked();
+    if (backEvent == null || VERSION.SDK_INT < VERSION_CODES.UPSIDE_DOWN_CAKE) {
       // If using traditional button system nav or if pre-U, just hide or collapse the bottom sheet.
       setState(hideable ? STATE_HIDDEN : STATE_COLLAPSED);
       return;
@@ -1637,7 +1688,6 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
     }
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   @Override
   public void cancelBackProgress() {
     if (bottomContainerBackHelper == null) {
@@ -1658,7 +1708,7 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
     if (view.getVisibility() != View.VISIBLE) {
       return null;
     }
-    if (ViewCompat.isNestedScrollingEnabled(view)) {
+    if (view.isNestedScrollingEnabled()) {
       return view;
     }
     if (view instanceof ViewGroup) {
@@ -1866,7 +1916,7 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
               return false;
             }
           }
-          viewCapturedMillis = System.currentTimeMillis();
+          viewCapturedMillis = SystemClock.uptimeMillis();
           return viewRef != null && viewRef.get() == child;
         }
 
@@ -1896,7 +1946,7 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
               targetState = STATE_EXPANDED;
             } else {
               int currentTop = releasedChild.getTop();
-              long dragDurationMillis = System.currentTimeMillis() - viewCapturedMillis;
+              long dragDurationMillis = SystemClock.uptimeMillis() - viewCapturedMillis;
 
               if (shouldSkipHalfExpandedStateWhenDragging()) {
                 float yPositionPercentage = currentTop * 100f / parentHeight;
@@ -1986,10 +2036,7 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
 
         @Override
         public int clampViewPositionVertical(@NonNull View child, int top, int dy) {
-          return MathUtils.clamp(
-              top,
-              getExpandedOffset(),
-              getViewVerticalDragRange(child));
+          return MathUtils.clamp(top, getExpandedOffset(), getViewVerticalDragRange(child));
         }
 
         @Override
@@ -2144,7 +2191,7 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
       }
       this.targetState = targetState;
       if (!isContinueSettlingRunnablePosted) {
-        ViewCompat.postOnAnimation(viewRef.get(), continueSettlingRunnable);
+        viewRef.get().postOnAnimation(continueSettlingRunnable);
         isContinueSettlingRunnablePosted = true;
       }
     }
@@ -2272,7 +2319,7 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
 
     CoordinatorLayout parent = (CoordinatorLayout) viewParent;
     final int childCount = parent.getChildCount();
-    if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) && expanded) {
+    if (expanded) {
       if (importantForAccessibilityMap == null) {
         importantForAccessibilityMap = new HashMap<>(childCount);
       } else {
@@ -2289,19 +2336,16 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
 
       if (expanded) {
         // Saves the important for accessibility value of the child view.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-          importantForAccessibilityMap.put(child, child.getImportantForAccessibility());
-        }
+        importantForAccessibilityMap.put(child, child.getImportantForAccessibility());
         if (updateImportantForAccessibilityOnSiblings) {
-          ViewCompat.setImportantForAccessibility(
-              child, ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+          child.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         }
       } else {
         if (updateImportantForAccessibilityOnSiblings
             && importantForAccessibilityMap != null
             && importantForAccessibilityMap.containsKey(child)) {
           // Restores the original important for accessibility value of the child view.
-          ViewCompat.setImportantForAccessibility(child, importantForAccessibilityMap.get(child));
+          child.setImportantForAccessibility(importantForAccessibilityMap.get(child));
         }
       }
     }
@@ -2313,6 +2357,10 @@ public class BottomSheetBehavior<V extends View> extends CoordinatorLayout.Behav
       // to the bottom sheet when expanded.
       viewRef.get().sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
     }
+  }
+
+  void setDragHandleView(@Nullable BottomSheetDragHandleView dragHandleView) {
+    dragHandleViewRef = dragHandleView != null ? new WeakReference<>(dragHandleView) : null;
   }
 
   void setAccessibilityDelegateView(@Nullable View accessibilityDelegateView) {

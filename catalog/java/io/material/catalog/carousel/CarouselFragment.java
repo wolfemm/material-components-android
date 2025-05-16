@@ -73,13 +73,18 @@ public class CarouselFragment extends DemoLandingFragment {
             return new HeroCarouselDemoFragment();
           }
         },
-        new Demo(R.string.cat_carousel_default_list_demo_title) {
+        new Demo(R.string.cat_carousel_fullscreen_demo_title) {
           @Override
           public Fragment createFragment() {
-            return new DefaultListDemoFragment();
+            return new FullScreenStrategyDemoFragment();
           }
-        }
-    );
+        },
+        new Demo(R.string.cat_carousel_uncontained_demo_title) {
+          @Override
+          public Fragment createFragment() {
+            return new UncontainedCarouselDemoFragment();
+          }
+        });
   }
 
   /** The Dagger module for {@link CarouselFragment} dependencies. */

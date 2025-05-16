@@ -19,9 +19,11 @@ import com.google.android.material.R;
 
 import static com.google.android.material.carousel.CarouselStrategy.getChildMaskPercentage;
 import static java.lang.Math.max;
+import static java.lang.Math.min;
 
 import android.content.Context;
 import androidx.annotation.NonNull;
+import com.google.android.material.carousel.CarouselLayoutManager.Alignment;
 
 /**
  * A helper class with utility methods for {@link CarouselStrategy} implementations.
@@ -42,6 +44,18 @@ final class CarouselStrategyHelper {
     return context.getResources().getDimension(R.dimen.m3_carousel_small_item_size_max);
   }
 
+  static KeylineState createKeylineState(
+      @NonNull Context context,
+      float childMargins,
+      int availableSpace,
+      @NonNull Arrangement arrangement,
+      @Alignment int alignment) {
+    if (alignment == CarouselLayoutManager.ALIGNMENT_CENTER) {
+      return createCenterAlignedKeylineState(context, childMargins, availableSpace, arrangement);
+    }
+    return createLeftAlignedKeylineState(context, childMargins, availableSpace, arrangement);
+  }
+
   /**
    * Gets the {@link KeylineState} associated with the given parameters.
    *
@@ -55,25 +69,26 @@ final class CarouselStrategyHelper {
   static KeylineState createLeftAlignedKeylineState(
       @NonNull Context context,
       float childHorizontalMargins,
-      float availableSpace,
+      int availableSpace,
       @NonNull Arrangement arrangement) {
 
-    float extraSmallChildWidth = getExtraSmallSize(context) + childHorizontalMargins;
+    float extraSmallChildWidth =
+        min(getExtraSmallSize(context) + childHorizontalMargins, arrangement.largeSize);
 
     float start = 0F;
     float extraSmallHeadCenterX = start - (extraSmallChildWidth / 2F);
 
-    float largeStartCenterX = start + (arrangement.largeSize / 2F);
+    float largeStartCenterX = addStart(start, arrangement.largeSize, arrangement.largeCount);
     float largeEndCenterX =
-        largeStartCenterX + (max(0, arrangement.largeCount - 1) * arrangement.largeSize);
-    start = largeEndCenterX + arrangement.largeSize / 2F;
+        addEnd(largeStartCenterX, arrangement.largeSize, arrangement.largeCount);
+    start =
+        updateCurPosition(start, largeEndCenterX, arrangement.largeSize, arrangement.largeCount);
 
-    float mediumCenterX =
-        arrangement.mediumCount > 0 ? start + (arrangement.mediumSize / 2F) : largeEndCenterX;
-    start = arrangement.mediumCount > 0 ? mediumCenterX + (arrangement.mediumSize / 2F) : start;
+    float mediumCenterX = addStart(start, arrangement.mediumSize, arrangement.mediumCount);
+    start =
+        updateCurPosition(start, mediumCenterX, arrangement.mediumSize, arrangement.mediumCount);
 
-    float smallStartCenterX =
-        arrangement.smallCount > 0 ? start + (arrangement.smallSize / 2F) : mediumCenterX;
+    float smallStartCenterX = addStart(start, arrangement.smallSize, arrangement.smallCount);
 
     float extraSmallTailCenterX = availableSpace + (extraSmallChildWidth / 2F);
 
@@ -88,8 +103,8 @@ final class CarouselStrategyHelper {
     float largeMask = 0F;
 
     KeylineState.Builder builder =
-        new KeylineState.Builder(arrangement.largeSize)
-            .addKeyline(extraSmallHeadCenterX, extraSmallMask, extraSmallChildWidth)
+        new KeylineState.Builder(arrangement.largeSize, availableSpace)
+            .addAnchorKeyline(extraSmallHeadCenterX, extraSmallMask, extraSmallChildWidth)
             .addKeylineRange(
                 largeStartCenterX, largeMask, arrangement.largeSize, arrangement.largeCount, true);
     if (arrangement.mediumCount > 0) {
@@ -99,7 +114,125 @@ final class CarouselStrategyHelper {
       builder.addKeylineRange(
           smallStartCenterX, smallMask, arrangement.smallSize, arrangement.smallCount);
     }
-    builder.addKeyline(extraSmallTailCenterX, extraSmallMask, extraSmallChildWidth);
+    builder.addAnchorKeyline(extraSmallTailCenterX, extraSmallMask, extraSmallChildWidth);
+    return builder.build();
+  }
+
+  /**
+   * Gets the {@link KeylineState} associated with the given parameters, with the focal item
+   * in the center.
+   *
+   * @param context The context used to load resources.
+   * @param childHorizontalMargins The child margins to use when calculating mask percentage.
+   * @param availableSpace the space that the {@link KeylineState} needs to fit.
+   * @param arrangement the {@link Arrangement} to translate into a {@link KeylineState}.
+   * @return the {@link KeylineState} associated with the arrangement with the lowest cost
+   * according to the item count array priorities and how close it is to the target sizes.
+   */
+  static KeylineState createCenterAlignedKeylineState(
+      @NonNull Context context,
+      float childHorizontalMargins,
+      int availableSpace,
+      @NonNull Arrangement arrangement) {
+
+    float extraSmallChildWidth =
+        min(getExtraSmallSize(context) + childHorizontalMargins, arrangement.largeSize);
+
+    float start = 0F;
+    float extraSmallHeadCenterX = start - (extraSmallChildWidth / 2F);
+
+    // Half of the small items
+    float halfSmallStartCenterX = addStart(start, arrangement.smallSize, arrangement.smallCount);
+    float halfSmallEndCenterX =
+        addEnd(
+            halfSmallStartCenterX,
+            arrangement.smallSize,
+            (int) Math.floor((float) arrangement.smallCount / 2F));
+    start =
+        updateCurPosition(
+            start, halfSmallEndCenterX, arrangement.smallSize, arrangement.smallCount);
+
+    // Half of the medium items
+    float halfMediumStartCenterX = addStart(start, arrangement.mediumSize, arrangement.mediumCount);
+    float halfMediumEndCenterX =
+        addEnd(
+            halfMediumStartCenterX,
+            arrangement.mediumSize,
+            (int) Math.floor((float) arrangement.mediumCount / 2F));
+    start =
+        updateCurPosition(
+            start, halfMediumEndCenterX, arrangement.mediumSize, arrangement.mediumCount);
+
+    float largeStartCenterX = addStart(start, arrangement.largeSize, arrangement.largeCount);
+    float largeEndCenterX =
+        addEnd(largeStartCenterX, arrangement.largeSize, arrangement.largeCount);
+    start =
+        updateCurPosition(start, largeEndCenterX, arrangement.largeSize, arrangement.largeCount);
+
+    float secondHalfMediumStartCenterX =
+        addStart(start, arrangement.mediumSize, arrangement.mediumCount);
+    float secondHalfMediumEndCenterX =
+        addEnd(
+            secondHalfMediumStartCenterX,
+            arrangement.mediumSize,
+            (int) Math.ceil((float) arrangement.mediumCount / 2F));
+    start =
+        updateCurPosition(
+            start, secondHalfMediumEndCenterX, arrangement.mediumSize, arrangement.mediumCount);
+
+    float secondHalfSmallStartCenterX =
+        addStart(start, arrangement.smallSize, arrangement.smallCount);
+
+    float extraSmallTailCenterX = availableSpace + (extraSmallChildWidth / 2F);
+
+    float extraSmallMask =
+        getChildMaskPercentage(extraSmallChildWidth, arrangement.largeSize, childHorizontalMargins);
+    float smallMask =
+        getChildMaskPercentage(
+            arrangement.smallSize, arrangement.largeSize, childHorizontalMargins);
+    float mediumMask =
+        getChildMaskPercentage(
+            arrangement.mediumSize, arrangement.largeSize, childHorizontalMargins);
+    float largeMask = 0F;
+
+    KeylineState.Builder builder =
+        new KeylineState.Builder(arrangement.largeSize, availableSpace)
+            .addAnchorKeyline(extraSmallHeadCenterX, extraSmallMask, extraSmallChildWidth);
+    if (arrangement.smallCount > 0) {
+      builder.addKeylineRange(
+          halfSmallStartCenterX,
+          smallMask,
+          arrangement.smallSize,
+          (int) Math.floor(arrangement.smallCount / 2F));
+    }
+    if (arrangement.mediumCount > 0) {
+      builder.addKeylineRange(
+          halfMediumStartCenterX,
+          mediumMask,
+          arrangement.mediumSize,
+          (int) Math.floor(arrangement.mediumCount / 2F));
+    }
+
+    builder.addKeylineRange(
+        largeStartCenterX, largeMask, arrangement.largeSize, arrangement.largeCount, true);
+
+    if (arrangement.mediumCount > 0) {
+      builder.addKeylineRange(
+          secondHalfMediumStartCenterX,
+          mediumMask,
+          arrangement.mediumSize,
+          (int) Math.ceil(arrangement.mediumCount / 2F));
+    }
+
+    if (arrangement.smallCount > 0) {
+      builder.addKeylineRange(
+          secondHalfSmallStartCenterX,
+          smallMask,
+          arrangement.smallSize,
+          (int) Math.ceil(arrangement.smallCount / 2F));
+    }
+
+    builder.addAnchorKeyline(extraSmallTailCenterX, extraSmallMask, extraSmallChildWidth);
     return builder.build();
   }
 
@@ -112,5 +245,36 @@ final class CarouselStrategyHelper {
     }
 
     return largest;
+  }
+
+  /**
+   * Helper method to calculate the keyline position of the start of the item block according to the
+   * start position, item size, and item count.
+   */
+  static float addStart(float start, float itemSize, int count) {
+    if (count > 0) {
+      return start + itemSize / 2F;
+    }
+    return start;
+  }
+
+  /**
+   * Helper method to calculate the keyline position of the end of the item block according to the
+   * start position, item size, and item count.
+   */
+  static float addEnd(float startKeylinePos, float itemSize, int count) {
+    return startKeylinePos + (max(0, count - 1) * itemSize);
+  }
+
+  /**
+   * Helper method to update the current position of the keyline calculations after the last keyline
+   * in the item range.
+   */
+  static float updateCurPosition(
+      float curPosition, float lastEndKeyline, float itemSize, int count) {
+    if (count > 0) {
+      return lastEndKeyline + itemSize / 2F;
+    }
+    return curPosition;
   }
 }

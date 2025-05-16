@@ -16,10 +16,11 @@
 
 package com.google.android.material.drawable;
 
+import com.google.android.material.R;
+
 import static java.lang.Math.max;
 
 import android.annotation.SuppressLint;
-import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Resources.NotFoundException;
@@ -29,6 +30,8 @@ import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuff.Mode;
 import android.graphics.PorterDuffColorFilter;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.ColorStateListDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.RippleDrawable;
@@ -39,6 +42,7 @@ import android.util.AttributeSet;
 import android.util.Xml;
 import android.view.Gravity;
 import androidx.annotation.ColorInt;
+import androidx.annotation.DoNotInline;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.Px;
@@ -64,7 +68,7 @@ public final class DrawableUtils {
 
   /**
    * Indicates to use the intrinsic size of the {@link Drawable}.
-   * 
+   *
    * <p>Used in {@link #compositeTwoLayeredDrawable(Drawable, Drawable, int, int)}.
    */
   public static final int INTRINSIC_SIZE = -1;
@@ -95,9 +99,9 @@ public final class DrawableUtils {
       }
     } else {
       if (hasTint) {
-        DrawableCompat.setTint(drawable, color);
+        drawable.setTint(color);
       } else {
-        DrawableCompat.setTintList(drawable, null);
+        drawable.setTintList(null);
       }
     }
   }
@@ -145,7 +149,6 @@ public final class DrawableUtils {
     }
   }
 
-  @TargetApi(VERSION_CODES.LOLLIPOP)
   public static void setRippleDrawableRadius(@Nullable RippleDrawable drawable, int radius) {
     if (VERSION.SDK_INT >= VERSION_CODES.M) {
       drawable.setRadius(radius);
@@ -200,7 +203,7 @@ public final class DrawableUtils {
     if (tintList != null) {
       drawable = DrawableCompat.wrap(drawable).mutate();
       if (tintMode != null) {
-        DrawableCompat.setTintMode(drawable, tintMode);
+        drawable.setTintMode(tintMode);
       }
     } else if (forceMutate) {
       drawable.mutate();
@@ -211,7 +214,7 @@ public final class DrawableUtils {
   /**
    * Composites two drawables, returning a drawable instance of {@link LayerDrawable},
    * with the top layer centered.
-   * 
+   *
    * <p>If any of the drawables is null, this method will return the other.
    *
    * @param bottomLayerDrawable the drawable to be on the bottom layer
@@ -221,27 +224,8 @@ public final class DrawableUtils {
   public static Drawable compositeTwoLayeredDrawable(
       @Nullable Drawable bottomLayerDrawable,
       @Nullable Drawable topLayerDrawable) {
-    if (VERSION.SDK_INT >= VERSION_CODES.M) {
-      return compositeTwoLayeredDrawable(
-          bottomLayerDrawable, topLayerDrawable, INTRINSIC_SIZE, INTRINSIC_SIZE);
-    }
-
-    if (bottomLayerDrawable == null) {
-      return topLayerDrawable;
-    }
-    if (topLayerDrawable == null) {
-      return bottomLayerDrawable;
-    }
-    LayerDrawable drawable =
-        new LayerDrawable(new Drawable[] {bottomLayerDrawable, topLayerDrawable});
-    int horizontalInset =
-        max(bottomLayerDrawable.getIntrinsicWidth()
-            - getTopLayerIntrinsicWidth(bottomLayerDrawable, topLayerDrawable), 0) / 2;
-    int verticalInset =
-        max(bottomLayerDrawable.getIntrinsicHeight()
-            - getTopLayerIntrinsicHeight(bottomLayerDrawable, topLayerDrawable), 0) / 2;
-    drawable.setLayerInset(1, horizontalInset, verticalInset, horizontalInset, verticalInset);
-    return drawable;
+    return compositeTwoLayeredDrawable(
+        bottomLayerDrawable, topLayerDrawable, INTRINSIC_SIZE, INTRINSIC_SIZE);
   }
 
   /**
@@ -249,7 +233,7 @@ public final class DrawableUtils {
    * with the top layer centered to the bottom layer. The top layer will be scaled according to the
    * provided desired width/height and the size of the bottom layer so the top layer can fit in the
    * bottom layer and preserve its desired aspect ratio.
-   * 
+   *
    * <p>If any of the drawables is null, this method will return the other.
    *
    * @param bottomLayerDrawable the drawable to be on the bottom layer
@@ -259,7 +243,6 @@ public final class DrawableUtils {
    * @param topLayerDesiredHeight top layer desired height in pixels, or {@link #INTRINSIC_SIZE} to
    *     use the intrinsic height.
    */
-  @RequiresApi(VERSION_CODES.M)
   @Nullable
   public static Drawable compositeTwoLayeredDrawable(
       @Nullable Drawable bottomLayerDrawable,
@@ -272,9 +255,9 @@ public final class DrawableUtils {
     if (topLayerDrawable == null) {
       return bottomLayerDrawable;
     }
-    LayerDrawable drawable =
-        new LayerDrawable(new Drawable[] {bottomLayerDrawable, topLayerDrawable});
 
+    boolean shouldScaleTopLayer =
+        topLayerDesiredWidth != INTRINSIC_SIZE && topLayerDesiredHeight != INTRINSIC_SIZE;
     if (topLayerDesiredWidth == INTRINSIC_SIZE) {
       topLayerDesiredWidth = getTopLayerIntrinsicWidth(bottomLayerDrawable, topLayerDrawable);
     }
@@ -308,23 +291,41 @@ public final class DrawableUtils {
       }
     }
 
-    drawable.setLayerSize(1, topLayerNewWidth, topLayerNewHeight);
-    drawable.setLayerGravity(1, Gravity.CENTER);
+    LayerDrawable drawable;
+    if (VERSION.SDK_INT >= VERSION_CODES.M) {
+      drawable = new LayerDrawable(new Drawable[] {bottomLayerDrawable, topLayerDrawable});
+
+      drawable.setLayerSize(1, topLayerNewWidth, topLayerNewHeight);
+      drawable.setLayerGravity(1, Gravity.CENTER);
+    } else {
+      if (shouldScaleTopLayer) {
+        topLayerDrawable =
+            new ScaledDrawableWrapper(topLayerDrawable, topLayerNewWidth, topLayerNewHeight);
+      }
+      drawable = new LayerDrawable(new Drawable[] {bottomLayerDrawable, topLayerDrawable});
+
+      final int horizontalInset =
+          max((bottomLayerDrawable.getIntrinsicWidth() - topLayerNewWidth) / 2, 0);
+      final int verticalInset =
+          max((bottomLayerDrawable.getIntrinsicHeight() - topLayerNewHeight) / 2, 0);
+      drawable.setLayerInset(1, horizontalInset, verticalInset, horizontalInset, verticalInset);
+    }
+
     return drawable;
   }
 
   private static int getTopLayerIntrinsicWidth(
       @NonNull Drawable bottomLayerDrawable, @NonNull Drawable topLayerDrawable) {
     int topLayerIntrinsicWidth = topLayerDrawable.getIntrinsicWidth();
-    return topLayerIntrinsicWidth == UNSPECIFIED_WIDTH
-        ? bottomLayerDrawable.getIntrinsicWidth() : topLayerIntrinsicWidth;
+    return topLayerIntrinsicWidth != UNSPECIFIED_WIDTH
+        ? topLayerIntrinsicWidth : bottomLayerDrawable.getIntrinsicWidth();
   }
 
   private static int getTopLayerIntrinsicHeight(
       @NonNull Drawable bottomLayerDrawable, @NonNull Drawable topLayerDrawable) {
     int topLayerIntrinsicHeight = topLayerDrawable.getIntrinsicHeight();
-    return topLayerIntrinsicHeight == UNSPECIFIED_HEIGHT
-        ? bottomLayerDrawable.getIntrinsicHeight() : topLayerIntrinsicHeight;
+    return topLayerIntrinsicHeight != UNSPECIFIED_HEIGHT
+        ? topLayerIntrinsicHeight : bottomLayerDrawable.getIntrinsicHeight();
   }
 
   /** Returns a new state that adds the checked state to the input state. */
@@ -360,17 +361,62 @@ public final class DrawableUtils {
   /** Sets the Outline to a {@link android.graphics.Path path}, if possible. */
   public static void setOutlineToPath(@NonNull final Outline outline, @NonNull final Path path) {
     if (VERSION.SDK_INT >= VERSION_CODES.R) {
-      outline.setPath(path);
+      OutlineCompatR.setPath(outline, path);
     } else if (VERSION.SDK_INT >= VERSION_CODES.Q) {
       try {
         // As of Android Q, the restriction that the path must be convex is removed, but the API is
         // misnamed until the introduction of setPath() in R, so we have to use setConvexPath for Q.
-        outline.setConvexPath(path);
+        OutlineCompatL.setConvexPath(outline, path);
       } catch (IllegalArgumentException ignored) {
         // The change to support concave paths was done late in the release cycle. People
         // using pre-releases of Q would experience a crash here.
       }
-    } else if (VERSION.SDK_INT >= VERSION_CODES.LOLLIPOP && path.isConvex()) {
+    } else if (path.isConvex()) {
+      OutlineCompatL.setConvexPath(outline, path);
+    }
+  }
+
+  /**
+   * Returns the {@link ColorStateList} if it can be retrieved from the {@code drawable}, or null
+   * otherwise.
+   *
+   * <p>In particular:
+   *
+   * <ul>
+   *   <li>If the {@code drawable} is a {@link ColorStateListDrawable}, the method will return the
+   *       {@code drawable}'s {@link ColorStateList}.
+   *   <li>If the {@code drawable} is a {@link ColorDrawable}, the method will return a {@link
+   *       ColorStateList} containing the {@code drawable}'s color.
+   * </ul>
+   */
+  @Nullable
+  public static ColorStateList getColorStateListOrNull(@Nullable final Drawable drawable) {
+    if (drawable instanceof ColorDrawable) {
+      return ColorStateList.valueOf(((ColorDrawable) drawable).getColor());
+    }
+
+    if (VERSION.SDK_INT >= VERSION_CODES.Q) {
+      if (drawable instanceof ColorStateListDrawable) {
+        return ((ColorStateListDrawable) drawable).getColorStateList();
+      }
+    }
+
+    return null;
+  }
+
+  @RequiresApi(VERSION_CODES.R)
+  private static class OutlineCompatR {
+    // Avoid class verification failures on older Android versions.
+    @DoNotInline
+    static void setPath(@NonNull Outline outline, @NonNull Path path) {
+      outline.setPath(path);
+    }
+  }
+
+  private static class OutlineCompatL {
+    // Avoid class verification failures on older Android versions.
+    @DoNotInline
+    static void setConvexPath(@NonNull Outline outline, @NonNull Path path) {
       outline.setConvexPath(path);
     }
   }

@@ -15,8 +15,6 @@
  */
 package com.google.android.material.color;
 
-import com.google.android.material.R;
-
 import static android.graphics.Color.TRANSPARENT;
 import static androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP;
 
@@ -114,12 +112,19 @@ public class MaterialColors {
   @ColorInt
   public static int getColor(
       @NonNull Context context, @AttrRes int colorAttributeResId, @ColorInt int defaultValue) {
+    Integer color = getColorOrNull(context, colorAttributeResId);
+    return color != null ? color : defaultValue;
+  }
+
+  /**
+   * Returns the color int for the provided theme color attribute, or null if the attribute is not
+   * set in the current theme.
+   */
+  @Nullable
+  @ColorInt
+  public static Integer getColorOrNull(@NonNull Context context, @AttrRes int colorAttributeResId) {
     TypedValue typedValue = MaterialAttributes.resolve(context, colorAttributeResId);
-    if (typedValue != null) {
-      return resolveColor(context, typedValue);
-    } else {
-      return defaultValue;
-    }
+    return typedValue != null ? resolveColor(context, typedValue) : null;
   }
 
   /**
@@ -256,7 +261,10 @@ public class MaterialColors {
   public static int harmonizeWithPrimary(@NonNull Context context, @ColorInt int colorToHarmonize) {
     return harmonize(
         colorToHarmonize,
-        getColor(context, R.attr.colorPrimary, MaterialColors.class.getCanonicalName()));
+        getColor(
+            context,
+            androidx.appcompat.R.attr.colorPrimary,
+            MaterialColors.class.getCanonicalName()));
   }
 
   /**
@@ -341,7 +349,7 @@ public class MaterialColors {
 
   static boolean isLightTheme(@NonNull Context context) {
     return MaterialAttributes.resolveBoolean(
-        context, R.attr.isLightTheme, /* defaultValue= */ true);
+        context, androidx.appcompat.R.attr.isLightTheme, /* defaultValue= */ true);
   }
 
   @ColorInt

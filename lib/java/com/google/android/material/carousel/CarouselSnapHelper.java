@@ -34,6 +34,10 @@ import androidx.annotation.Nullable;
  */
 public class CarouselSnapHelper extends SnapHelper {
 
+  private static final float HORIZONTAL_SNAP_SPEED = 100F;
+
+  private static final float VERTICAL_SNAP_SPEED = 50F;
+
   private final boolean disableFling;
   private RecyclerView recyclerView;
 
@@ -66,13 +70,16 @@ public class CarouselSnapHelper extends SnapHelper {
       return new int[] {0, 0};
     }
 
-    int offset = 0;
+    int offset =
+        distanceToFirstFocalKeyline(view, (CarouselLayoutManager) layoutManager, partialSnap);
     if (layoutManager.canScrollHorizontally()) {
-      offset =
-          distanceToFirstFocalKeyline(view, (CarouselLayoutManager) layoutManager, partialSnap);
+      return new int[] {offset, 0};
     }
-    // TODO(b/279088745): Implement snap helper for vertical scrolling.
-    return new int[] {offset, 0};
+
+    if (layoutManager.canScrollVertically()) {
+      return new int[] {0, offset};
+    }
+    return new int[] {0, 0};
   }
 
   private int distanceToFirstFocalKeyline(
@@ -84,11 +91,7 @@ public class CarouselSnapHelper extends SnapHelper {
   @Nullable
   @Override
   public View findSnapView(LayoutManager layoutManager) {
-    // TODO(b/279088745): Implement snap helper for vertical scrolling.
-    if (layoutManager.canScrollHorizontally()) {
-      return findViewNearestFirstKeyline(layoutManager);
-    }
-    return null;
+    return findViewNearestFirstKeyline(layoutManager);
   }
 
   /**
@@ -246,7 +249,11 @@ public class CarouselSnapHelper extends SnapHelper {
 
           @Override
           protected float calculateSpeedPerPixel(DisplayMetrics displayMetrics) {
-            return 100.0F / (float) displayMetrics.densityDpi;
+            // If the carousel orientation is vertical, we want the scroll speed to be faster.
+            if (layoutManager.canScrollVertically()) {
+              return VERTICAL_SNAP_SPEED / (float) displayMetrics.densityDpi;
+            }
+            return HORIZONTAL_SNAP_SPEED / (float) displayMetrics.densityDpi;
           }
         }
         : null;

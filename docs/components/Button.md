@@ -16,15 +16,23 @@ and make choices, with a single tap.
 
 **Contents**
 
+*   [Design and API Documentation](#design-and-api-documentation)
 *   [Using buttons](#using-buttons)
 *   [Elevated button](#elevated-button)
 *   [Filled button](#filled-button)
 *   [Filled tonal button](#filled-tonal-button)
 *   [Outlined button](#outlined-button)
 *   [Text button](#text-button)
-*   [Toggle button](#toggle-button)
+*   [Button groups](#button-groups)
+*   [Toggle button group](#toggle-button-groups)
 *   [Icon button](#icon-button)
+*   [Optical centering](#optical-centering)
 *   [Theming](#theming-buttons)
+
+## Design and API Documentation
+
+*   [Google Material3 Spec](https://material.io/components/buttons/overview)
+*   [API Reference](https://developer.android.com/reference/com/google/android/material/button/package-summary)
 
 ## Using buttons
 
@@ -137,10 +145,10 @@ Element        | Attribute                | Related method(s)                 | 
 
 Element          | Attribute             | Related method(s)                                                            | Default value
 ---------------- | --------------------- | ---------------------------------------------------------------------------- | -------------
-**Color**        | `app:backgroundTint`  | `setBackgroundColor`<br/>`setBackgroundTintList`<br/>`getBackgroundTintList` | `?attr/colorSurface` (see all [states](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/res/color/m3_text_button_background_color_selector.xml))
+**Color**        | `app:backgroundTint`  | `setBackgroundColor`<br/>`setBackgroundTintList`<br/>`getBackgroundTintList` | `?attr/colorSurfaceContainerLow` (see all [states](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/res/color/m3_text_button_background_color_selector.xml))
 **Stroke color** | `app:strokeColor`     | `setStrokeColor`<br/>`setStrokeColorResource`<br/>`getStrokeColor`           | `null`
 **Stroke width** | `app:strokeWidth`     | `setStrokeWidth`<br/>`setStrokeWidthResource`<br/>`getStrokeWidth`           | `0dp`
-**Shape**        | `app:shapeAppearance` | `setShapeAppearanceModel`<br/>`getShapeAppearanceModel`                      | `?attr/shapeAppearanceSmallComponent`
+**Shape**        | `app:shapeAppearance` | `setShapeAppearanceModel`<br/>`getShapeAppearanceModel`                      | `ShapeAppearance.M3.Sys.Shape.Corner.Full`
 **Elevation**    | `app:elevation`       | `setElevation`<br/>`getElevation`                                            | `1dp`
 **Ripple color** | `app:rippleColor`     | `setRippleColor`<br/>`setRippleColorResource`<br/>`getRippleColor`           | `?attr/colorOnSurface` at 16% opacity (see all [states](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/res/color/m3_text_button_ripple_color_selector.xml))
 
@@ -160,6 +168,8 @@ Element           | Style
 ----------------- | ---------------------------------------------
 **Default style** | `Widget.Material3.Button.ElevatedButton`
 **Icon style**    | `Widget.Material3.Button.ElevatedButton.Icon`
+
+Default style theme attribute: `?attr/materialButtonElevatedStyle`
 
 See the full list of
 [styles](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/res/values/styles.xml)
@@ -253,7 +263,7 @@ Element          | Attribute             | Related method(s)                    
 **Color**        | `app:backgroundTint`  | `setBackgroundColor`<br/>`setBackgroundTintList`<br/>`getBackgroundTintList` | `?attr/colorPrimary` (see all [states](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/color/res/color/m3_button_background_color_selector.xml))
 **Stroke color** | `app:strokeColor`     | `setStrokeColor`<br/>`setStrokeColorResource`<br/>`getStrokeColor`           | `null`
 **Stroke width** | `app:strokeWidth`     | `setStrokeWidth`<br/>`setStrokeWidthResource`<br/>`getStrokeWidth`           | `0dp`
-**Shape**        | `app:shapeAppearance` | `setShapeAppearanceModel`<br/>`getShapeAppearanceModel`                      | `?attr/shapeAppearanceSmallComponent`
+**Shape**        | `app:shapeAppearance` | `setShapeAppearanceModel`<br/>`getShapeAppearanceModel`                      | `ShapeAppearance.M3.Sys.Shape.Corner.Full`
 **Elevation**    | `app:elevation`       | `setElevation`<br/>`getElevation`                                            | `2dp`
 **Ripple color** | `app:rippleColor`     | `setRippleColor`<br/>`setRippleColorResource`<br/>`getRippleColor`           | `?attr/colorOnPrimary` at 16% opacity (see all [states](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/color/res/color/m3_button_ripple_color_selector.xml))
 
@@ -368,7 +378,7 @@ Element          | Attribute             | Related method(s)                    
 **Color**        | `app:backgroundTint`  | `setBackgroundColor`<br/>`setBackgroundTintList`<br/>`getBackgroundTintList` | `?attr/colorSecondaryContainer` (see all [states](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/color/res/color/m3_button_background_color_selector.xml))
 **Stroke color** | `app:strokeColor`     | `setStrokeColor`<br/>`setStrokeColorResource`<br/>`getStrokeColor`           | `null`
 **Stroke width** | `app:strokeWidth`     | `setStrokeWidth`<br/>`setStrokeWidthResource`<br/>`getStrokeWidth`           | `0dp`
-**Shape**        | `app:shapeAppearance` | `setShapeAppearanceModel`<br/>`getShapeAppearanceModel`                      | `?attr/shapeAppearanceSmallComponent`
+**Shape**        | `app:shapeAppearance` | `setShapeAppearanceModel`<br/>`getShapeAppearanceModel`                      | `ShapeAppearance.M3.Sys.Shape.Corner.Full`
 **Elevation**    | `app:elevation`       | `setElevation`<br/>`getElevation`                                            | `2dp`
 **Ripple color** | `app:rippleColor`     | `setRippleColor`<br/>`setRippleColorResource`<br/>`getRippleColor`           | `?attr/colorOnSecondaryContainer` at 16% opacity (see all [states](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/color/res/color/m3_tonal_button_ripple_color_selector.xml))
 
@@ -388,6 +398,8 @@ Element           | Style
 ----------------- | ------------------------------------------
 **Default style** | `Widget.Material3.Button.TonalButton`
 **Icon style**    | `Widget.Material3.Button.TonalButton.Icon`
+
+Default style theme attribute: `?attr/materialButtonTonalStyle`
 
 See the full list of
 [styles](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/res/values/styles.xml)
@@ -477,7 +489,7 @@ Element          | Attribute             | Related method(s)                    
 **Color**        | `app:backgroundTint`  | `setBackgroundColor`<br/>`setBackgroundTintList`<br/>`getBackgroundTintList` | `@android:color/transparent` (see all [states](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/res/color/m3_text_button_background_color_selector.xml))
 **Stroke color** | `app:strokeColor`     | `setStrokeColor`<br/>`setStrokeColorResource`<br/>`getStrokeColor`           | `?attr/colorOnSurface` at 12% opacity (see all [states](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/res/color/m3_button_outline_color_selector.xml))
 **Stroke width** | `app:strokeWidth`     | `setStrokeWidth`<br/>`setStrokeWidthResource`<br/>`getStrokeWidth`           | `1dp`
-**Shape**        | `app:shapeAppearance` | `setShapeAppearanceModel`<br/>`getShapeAppearanceModel`                      | `?attr/shapeAppearanceSmallComponent`
+**Shape**        | `app:shapeAppearance` | `setShapeAppearanceModel`<br/>`getShapeAppearanceModel`                      | `ShapeAppearance.M3.Sys.Shape.Corner.Full`
 **Elevation**    | `app:elevation`       | `setElevation`<br/>`getElevation`                                            | `0dp`
 **Ripple color** | `app:rippleColor`     | `setRippleColor`<br/>`setRippleColorResource`<br/>`getRippleColor`           | `?attr/colorOnSurface` at 16% opacity (see all [states](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/res/color/m3_text_button_ripple_color_selector.xml))
 
@@ -584,7 +596,7 @@ Element          | Attribute             | Related method(s)                    
 **Color**        | `app:backgroundTint`  | `setBackgroundColor`<br/>`setBackgroundTintList`<br/>`getBackgroundTintList` | `@android:color/transparent` (see all [states](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/res/color/m3_text_button_background_color_selector.xml))
 **Stroke color** | `app:strokeColor`     | `setStrokeColor`<br/>`setStrokeColorResource`<br/>`getStrokeColor`           | `null`
 **Stroke width** | `app:strokeWidth`     | `setStrokeWidth`<br/>`setStrokeWidthResource`<br/>`getStrokeWidth`           | `0dp`
-**Shape**        | `app:shapeAppearance` | `setShapeAppearanceModel`<br/>`getShapeAppearanceModel`                      | `?attr/shapeAppearanceSmallComponent`
+**Shape**        | `app:shapeAppearance` | `setShapeAppearanceModel`<br/>`getShapeAppearanceModel`                      | `ShapeAppearance.M3.Sys.Shape.Corner.Full`
 **Elevation**    | `app:elevation`       | `setElevation`<br/>`getElevation`                                            | `0dp`
 **Ripple color** | `app:rippleColor`     | `setRippleColor`<br/>`setRippleColorResource`<br/>`getRippleColor`           | `?attr/colorOnSurface` at 16% opacity (see all [states](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/res/color/m3_text_button_ripple_color_selector.xml))
 
@@ -613,12 +625,374 @@ See the full list of
 and
 [attrs](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/res/values/attrs.xml).
 
-## Toggle button
+## Button groups
 
-[Toggle buttons](https://material.io/components/buttons/#toggle-button) can be
-used to select from a group of choices.
+Button groups organize buttons and add interactions between them.
 
-There are two types of toggle buttons:
+There are two types of button groups based on their shapes:
+
+*   [Button group](#button-group)
+*   [Connected button group](#connected-button-group)
+
+### Button group
+
+The default button group contains multiple related individual buttons. The
+individual button's shape is preserved.
+
+![Examples of using default button group](assets/buttons/default_button_group.png)
+
+#### Button group examples
+
+Source code:
+
+*   `MaterialButtonGroup`
+    *   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/MaterialButtonGroup.java)
+*   `MaterialButton`
+    *   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/MaterialButton.java)
+
+The following example shows a button group with three buttons that have text
+labels.
+
+In the layout:
+
+```xml
+<com.google.android.material.button.MaterialButtonGroup
+    android:id="@+id/buttonGroup"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+    <Button
+        android:id="@+id/button1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Button 1"
+    />
+    <Button
+        android:id="@+id/button2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Button 2"
+    />
+    <Button
+        android:id="@+id/button3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Button 3"
+    />
+</com.google.android.material.button.MaterialButtonGroup>
+```
+
+### Connected button group
+
+In addition to standard button groups, connected button group also overrides the
+individual button's shape to make them visually more belong to a group with 2dp
+spacing, 8dp inner corners, and fully rounded outer corners.
+
+![Examples of using connected button group](assets/buttons/connected_button_group.png)
+
+#### Connected button group examples
+
+Source code:
+
+*   `MaterialButtonGroup`
+    *   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/MaterialButtonGroup.java)
+*   `MaterialButton`
+    *   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/MaterialButton.java)
+
+The following example shows a connected button group with three buttons that
+have text labels. To correctly style a button group as connected button group,
+the specific style needs to be set.
+
+In the layout:
+
+```xml
+<com.google.android.material.button.MaterialButtonGroup
+    android:id="@+id/buttonGroup"
+    style="@style/Widget.Material3.MaterialButtonGroup.Connected"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+    <Button
+        style="?attr/materialButtonOutlinedStyle"
+        android:id="@+id/button1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Button 1"
+    />
+    <Button
+        style="?attr/materialButtonOutlinedStyle"
+        android:id="@+id/button2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Button 2"
+    />
+    <Button
+        style="?attr/materialButtonOutlinedStyle"
+        android:id="@+id/button3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Button 3"
+    />
+</com.google.android.material.button.MaterialButtonGroup>
+```
+
+### Properties
+
+Element                         | Attribute             | Related method(s)                             | Default value
+------------------------------- | --------------------- | --------------------------------------------- | -------------
+**Group shape (outer corners)** | `app:shapeAppearance` | `setShapeAppearance`</br>`getShapeAppearance` | `none`
+**Size of inner corners**       | `app:innerCornerSize` | `setInnerCornerSize`<br/>`getInnerCornerSize` | `none`
+**Spacing between buttons**     | `android:spacing`     | `setSpacing`<br/>`getSpacing`                 | `12dp`
+**Child size change**           | `app:childSizeChange` | N/A                                           | `15%` in pressed,</br>otherwise, `0%`
+
+#### Styles and Theme attributes
+
+Element           | Style                                  | Theme Attribute
+----------------- | -------------------------------------- | ---------------
+**Default style** | `Widget.Material3.MaterialButtonGroup` | `?attr/materialButtonGroupStyle`
+
+### Making button groups adaptive
+
+`MaterialButtonGroup` inherits from the `LinearLayout`. It can be configured to
+achieve different child arrangements for different screen sizes or foldable
+screens by using `layout_width` and `layout_weight`.
+
+#### Fixed button sizes
+
+When child buttons should not be adjusted while screen size changes, consider
+using `layout_width` on all buttons.
+
+![Button group with fixed arrangement](assets/buttons/group_arrangement_fixed.png)
+
+```xml
+<com.google.android.material.button.MaterialButtonGroup
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingBottom="8dp"
+    android:gravity="center_horizontal"
+    android:spacing="4dp">
+    <Button
+        style="?attr/materialIconButtonFilledStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/cat_button_previous_icon"
+        android:gravity="center"
+        app:iconGravity="textStart"
+        app:icon="@drawable/cat_button_previous_icon"/>
+    <Button
+        style="?attr/materialIconButtonFilledStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/cat_button_play_icon"
+        android:gravity="center"
+        app:iconGravity="textStart"
+        app:icon="@drawable/cat_button_play_icon"/>
+    <Button
+        style="?attr/materialIconButtonFilledStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/cat_button_next_icon"
+        android:gravity="center"
+        app:iconGravity="textStart"
+        app:icon="@drawable/cat_button_next_icon"/>
+</com.google.android.material.button.MaterialButtonGroup>
+```
+
+#### Flexible button sizes
+
+When all child buttons are equally important or their sizes are proportional to
+each other, consider using `layout_weight` on all buttons.
+
+![Button group with flexible arrangement](assets/buttons/group_arrangement_flexible.png)
+
+```xml
+<com.google.android.material.button.MaterialButtonGroup
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingBottom="8dp"
+    android:gravity="center_horizontal"
+    android:spacing="4dp">
+    <Button
+        style="?attr/materialIconButtonFilledStyle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:contentDescription="@string/cat_button_previous_icon"
+        android:gravity="center"
+        app:iconGravity="textStart"
+        app:icon="@drawable/cat_button_previous_icon"/>
+    <Button
+        style="?attr/materialIconButtonFilledStyle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="2"
+        android:contentDescription="@string/cat_button_play_icon"
+        android:gravity="center"
+        app:iconGravity="textStart"
+        app:icon="@drawable/cat_button_play_icon"/>
+    <Button
+        style="?attr/materialIconButtonFilledStyle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:contentDescription="@string/cat_button_next_icon"
+        android:gravity="center"
+        app:iconGravity="textStart"
+        app:icon="@drawable/cat_button_next_icon"/>
+</com.google.android.material.button.MaterialButtonGroup>
+```
+
+#### Mixed button sizes
+
+When only some buttons are flexible for different screen sizes, consider using
+`layout_weight` on these buttons but use `layout_width` on the rest as below.
+
+![Button group with mixed arrangement](assets/buttons/group_arrangement_mixed.png)
+
+```xml
+<com.google.android.material.button.MaterialButtonGroup
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingBottom="8dp"
+    android:gravity="center_horizontal"
+    android:spacing="4dp">
+    <Button
+        style="?attr/materialIconButtonFilledStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/cat_button_previous_icon"
+        android:gravity="center"
+        app:iconGravity="textStart"
+        app:icon="@drawable/cat_button_previous_icon"/>
+    <Button
+        style="?attr/materialIconButtonFilledStyle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="2"
+        android:contentDescription="@string/cat_button_play_icon"
+        android:gravity="center"
+        app:iconGravity="textStart"
+        app:icon="@drawable/cat_button_play_icon"/>
+    <Button
+        style="?attr/materialIconButtonFilledStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/cat_button_next_icon"
+        android:gravity="center"
+        app:iconGravity="textStart"
+        app:icon="@drawable/cat_button_next_icon"/>
+</com.google.android.material.button.MaterialButtonGroup>
+```
+
+### Split button
+
+A specialized type of the connected button group is the split button. The
+trailing button is checkable with an animated icon.
+
+![Examples of using split button](assets/buttons/split_button.png)
+
+#### Split button examples
+
+Source code:
+
+*   `MaterialSplitButton`
+    *   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/MaterialSplitButton.java)
+
+The following example shows a split button with a leading label button and a
+trailing icon button that has an AnimatedVectorDrawable.
+
+In the layout:
+
+```xml
+<com.google.android.material.button.MaterialSplitButton
+    android:id="@+id/splitbutton"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+    <Button
+        style="?attr/materialSplitButtonLeadingFilledStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/cat_split_button_label"
+        app:icon="@drawable/ic_edit_vd_theme_24dp"
+    />
+    <Button
+        style="?attr/materialSplitButtonIconFilledStyle"
+        android:id="@+id/expand_more_or_less_filled"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/cat_split_button_label_chevron"
+        app:icon="@drawable/m3_split_button_chevron_avd"
+    />
+</com.google.android.material.button.MaterialSplitButton>
+```
+
+The following example shows a split button with a leading icon button and a
+trailing icon button that has an AnimatedVectorDrawable.
+
+In the layout:
+
+```xml
+<com.google.android.material.button.MaterialSplitButton
+    android:id="@+id/splitbutton"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+    <Button
+        style="?attr/materialSplitButtonLeadingFilledStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/cat_split_button_label_edit"
+        app:icon="@drawable/ic_edit_vd_theme_24dp"
+        app:iconPadding="0dp"
+    />
+    <Button
+        style="?attr/materialSplitButtonIconFilledStyle"
+        android:id="@+id/expand_more_or_less_filled_icon"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/cat_split_button_label_chevron"
+        app:icon="@drawable/m3_split_button_chevron_avd"
+    />
+</com.google.android.material.button.MaterialSplitButton>
+```
+
+### Animated Trailing Icon
+
+The icon on the trailing button is animated. In the samples, this is done with
+an AVD, `m3_split_button_chevron_avd`
+[[source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/res/drawable/m3_split_button_chevron_avd.xml)].
+
+### Properties
+
+Element                     | Attribute              | Related method(s)                             | Default value
+--------------------------- | ---------------------- | --------------------------------------------- | -------------
+**Size of inner corners**   | `app:innerCornerSize`  | `setInnerCornerSize`<br/>`getInnerCornerSize` | `none`
+**Spacing between buttons** | `android:spacing`      | `setSpacing`<br/>`getSpacing`                 | `2dp`
+**Button size change**      | `app:buttonSizeChange` | N/A                                           | `0%`
+
+#### Styles and Theme attributes
+
+Element                                   | Style                                                     | Theme Attribute
+----------------------------------------- | --------------------------------------------------------- | ---------------
+**Default style**                         | `Widget.Material3.MaterialSplitButton`                    | `?attr/materialSplitButtonStyle`
+**Leading button primary (filled) style** | `Widget.Material3.SplitButton.LeadingButton.Filled`       | `?attr/materialSplitButtonLeadingFilledStyle`
+**Leading button primary (tonal) style**  | `Widget.Material3.SplitButton.LeadingButton.Filled.Tonal` | `?attr/materialSplitButtonLeadingFilledTonalStyle`
+**Trailing icon primary (filled) style**  | `Widget.Material3.SplitButton.IconButton.Filled`          | `?attr/materialSplitButtonIconFilledStyle`
+**Trailing icon secondary (tonal) style** | `Widget.Material3.SplitButton.IconButton.Filled.Tonal`    | `?attr/materialSplitButtonIconFilledTonalStyle`
+
+The two new trailing icon styles `materialSplitButtonIconFilledStyle` – parented
+by `materialIconButtonFilledStyle` – and
+`materialSplitButtonIconFilledTonalStyle`-- parented by
+`materialIconButtonFilledTonalStyle` allow for the `MaterialSplitButton` custom
+behavior for `onChecked` and `onUnchecked` states.
+`materialSplitButtonIconFilledStyle` is paired with default leading button
+styling, with no style explicitly specified in the XML.
+`materialSplitButtonIconFilledTonalStyle` is paired with
+`materialButtonTonalStyle` for the leading button.
+
+## Toggle button groups
+
+[Toggle button group (Segmented buttons)](https://m3.material.io/components/segmented-buttons)
+can be used to select from a group of choices.
+
+There are two types of toggle buttons can be placed in a toggle button group:
 
 *   [Toggle button](#toggle-button)
 *   [Icon](#icon)
@@ -740,11 +1114,19 @@ A toggle button has a shared stroked container, icons and/or text labels.
 
 #### Selection attributes
 
-Element                             | Attribute               | Related method(s)                                | Default value
------------------------------------ | ----------------------- | ------------------------------------------------ | -------------
-**Single selection**                | `app:singleSelection`   | `setSingleSelection`<br/>`isSingleSelection`     | `false`
-**Selection required**              | `app:selectionRequired` | `setSelectionRequired`<br/>`isSelectionRequired` | `false`
-**Enable the group and all children | `android:enabled`       | `setEnabled`<br/>`isEnabled`                     | `true`
+Element                               | Attribute               | Related method(s)                                | Default value
+------------------------------------- | ----------------------- | ------------------------------------------------ | -------------
+**Single selection**                  | `app:singleSelection`   | `setSingleSelection`<br/>`isSingleSelection`     | `false`
+**Selection required**                | `app:selectionRequired` | `setSelectionRequired`<br/>`isSelectionRequired` | `false`
+**Enable the group and all children** | `android:enabled`       | `setEnabled`<br/>`isEnabled`                     | `true`
+
+#### Container attributes
+
+Element                         | Attribute             | Related method(s)                             | Default value
+------------------------------- | --------------------- | --------------------------------------------- | -------------
+**Size of inner corners**       | `app:innerCornerSize` | `setInnerCornerSize`<br/>`getInnerCornerSize` | `0dp`
+**Spacing between buttons**     | `android:spacing`     | `setSpacing`<br/>`getSpacing`                 | `0dp`
+**Group shape (outer corners)** | `app:shapeAppearance` | `setShapeAppearance`</br>`getShapeAppearance` | `none`
 
 #### Styles
 
@@ -771,8 +1153,8 @@ API and source code:
 *   `CheckBox`
     *   [Class description](https://developer.android.com/reference/android/widget/CheckBox)
 
-**Note** The `CheckBox` API is just one of several inputs that can implement the
-icon button. See other
+**Note:** The `CheckBox` API is just one of several inputs that can implement
+the icon button. See other
 [selection controls](https://material.io/components/selection-controls/) for
 more details.
 
@@ -840,6 +1222,14 @@ information.
 *   Ensure that the tooltip describes the button’s action, rather than
     the icon.
 
+**Note:** The examples below show how to create an icon button using `Button`
+which will be inflated to `MaterialButton` when using a Material theme. There is
+a known performance issue where `MaterialButton` takes longer to initialize when
+compared to `ImageButton` or `AppCompatImageButton`, in large part because
+`MaterialButton` extends from `AppCompatButton` which supports more than just
+icon buttons. Consider using those pure icon button alternatives if the extra
+latency causes a noticeable issue for your app.
+
 #### Icon button examples
 
 API and source code:
@@ -862,6 +1252,8 @@ In the layout:
     android:id="@+id/iconButton"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
+    android:contentDescription="@string/standard_icon_btn_desc"
+    app:icon="@drawable/ic_icon_24dp"
 />
 ```
 
@@ -887,6 +1279,8 @@ In the layout:
     android:id="@+id/iconButton"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
+    android:contentDescription="@string/filled_icon_btn_desc"
+    app:icon="@drawable/ic_icon_24dp"
 />
 ```
 
@@ -904,6 +1298,8 @@ In the layout:
     android:id="@+id/iconButton"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
+    android:contentDescription="@string/filled_tonal_icon_btn_desc"
+    app:icon="@drawable/ic_icon_24dp"
 />
 ```
 
@@ -921,10 +1317,12 @@ In the layout:
     android:id="@+id/iconButton"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
+    android:contentDescription="@string/outlined_icon_btn_desc"
+    app:icon="@drawable/ic_icon_24dp"
 />
 ```
 
-#### Styles & Theme attributes
+#### Styles and Theme attributes
 
 Element                      | Style                                             | Theme Attribute
 ---------------------------- | ------------------------------------------------- | ---------------
@@ -937,6 +1335,19 @@ See the full list of
 [styles](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/res/values/styles.xml)
 and
 [attrs](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/button/res/values/attrs.xml).
+
+## Optical Centering
+
+Optical centering means to offset the `MaterialButton`’s contents (icon and/or
+label) when the shape is asymmetric. Before optical centering, we only provided
+centering with horizontally asymmetrical shapes.
+
+To turn on optical centering for a given button, use
+`setOpticalCenterEnabled(true)`. Optical centering is disabled by default. When
+enabled, the shift amount of the icon and/or text is calculated as a value with
+the fixed ratio to the difference between left corner size in dp and right
+corner size in dp. The shift amount is applied to the padding start and padding
+end.
 
 ## Theming buttons
 
@@ -969,17 +1380,12 @@ all buttons. This affects other components:
     <item name="colorPrimary">@color/shrine_pink_100</item>
     <item name="colorOnPrimary">@color/shrine_pink_900</item>
     <item name="textAppearanceLabelLarge">@style/TextAppearance.App.Button</item>
-    <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.App.SmallComponent</item>
+    <item name="shapeCornerFamily">cut</item>
 </style>
 
 <style name="TextAppearance.App.Button" parent="TextAppearance.Material3.LabelLarge">
     <item name="fontFamily">@font/rubik</item>
     <item name="android:fontFamily">@font/rubik</item>
-</style>
-
-<style name="ShapeAppearance.App.SmallComponent" parent="ShapeAppearance.Material3.SmallComponent">
-    <item name="cornerFamily">cut</item>
-    <item name="cornerSize">4dp</item>
 </style>
 ```
 
@@ -997,28 +1403,33 @@ theme to all buttons but does not affect other components:
 <style name="Widget.App.Button.TextButton" parent="Widget.Material3.Button.TextButton">
     <item name="materialThemeOverlay">@style/ThemeOverlay.App.Button.TextButton</item>
     <item name="android:textAppearance">@style/TextAppearance.App.Button</item>
-    <item name="shapeAppearance">@style/ShapeAppearance.App.SmallComponent</item>
+    <item name="shapeAppearance">@style/ShapeAppearance.App.Button</item>
 </style>
 
 <style name="Widget.App.Button.OutlinedButton" parent="Widget.Material3.Button.OutlinedButton">
     <item name="materialThemeOverlay">@style/ThemeOverlay.App.Button.TextButton</item>
     <item name="android:textAppearance">@style/TextAppearance.App.Button</item>
-    <item name="shapeAppearance">@style/ShapeAppearance.App.SmallComponent</item>
+    <item name="shapeAppearance">@style/ShapeAppearance.App.Button</item>
 </style>
 
 <style name="Widget.App.Button" parent="Widget.Material3.Button">
     <item name="materialThemeOverlay">@style/ThemeOverlay.App.Button</item>
     <item name="android:textAppearance">@style/TextAppearance.App.Button</item>
-    <item name="shapeAppearance">@style/ShapeAppearance.App.SmallComponent</item>
+    <item name="shapeAppearance">@style/ShapeAppearance.App.Button</item>
 </style>
 
-<style name="ThemeOverlay.App.Button.TextButton" parent="">
-    <item name="colorPrimary">@color/shrine_pink_900</item>
+<style name="ThemeOverlay.App.Button.TextButton" parent="ThemeOverlay.Material3.Button.TextButton">
+    <item name="colorOnContainer">@color/shrine_pink_900</item>
 </style>
 
-<style name="ThemeOverlay.App.Button" parent="">
-    <item name="colorPrimary">@color/shrine_pink_100</item>
-    <item name="colorOnPrimary">@color/shrine_pink_900</item>
+<style name="ThemeOverlay.App.Button" parent="ThemeOverlay.Material3.Button">
+    <item name="colorContainer">@color/shrine_pink_100</item>
+    <item name="colorOnContainer">@color/shrine_pink_900</item>
+</style>
+
+<style name="ShapeAppearance.App.Button" parent="">
+    <item name="cornerFamily">cut</item>
+    <item name="cornerSize">4dp</item>
 </style>
 ```
 

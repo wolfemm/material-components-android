@@ -16,11 +16,17 @@ surface that allows product-specific branding and additional navigation icons.
 
 **Contents**
 
+*   [Design and API Documentation](#design-and-api-documentation)
 *   [Using search components](#using-search-components)
 *   [Search Bar](#search-bar)
 *   [Search View](#search-view)
 *   [Putting it all together](#putting-it-all-together)
 *   [Predictive Back](#predictive-back)
+
+## Design and API Documentation
+
+*   [Google Material3 Spec](https://material.io/components/search/overview)
+*   [API Reference](https://developer.android.com/reference/com/google/android/material/search/package-summary)
 
 ## Using search components
 
@@ -72,6 +78,12 @@ searchBar.setOnMenuItemClickListener(
 Note: `SearchBar` aims to provide a consistent search bar across all apps, so
 it does not support setting a custom background via `android:background`.
 
+API and source code:
+
+*   `SearchBar`
+    *   [Class definition](https://developer.android.com/reference/com/google/android/material/search/SearchBar)
+    *   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/search/SearchBar.java)
+
 ### Anatomy and key properties
 
 The following is an anatomy diagram for the search bar:
@@ -87,33 +99,46 @@ The following is an anatomy diagram for the search bar:
 
 The following attributes can be changed for `SearchBar`:
 
-Element                      | Attribute                   | Related method(s)                           | Default value
----------------------------- | --------------------------- | ------------------------------------------- | -------------
-**Min height**               | `android:minHeight`         | `setMinHeight`<br/>`getMinHeight`           | `@dimen/m3_searchbar_height`
-**Search text appearance**   | `android:textAppearance`    | `setTextAppearance`<br/>`getTextAppearance` | `@style/TextAppearance.Material3.SearchBar`
-**Search text**              | `android:text`              | `setText`<br/>`getText`                     | `null`
-**Search hint**              | `android:hint`              | `setHint`<br/>`getHint`                     | `null`
-**Color**                    | `app:backgroundTint`        | --                                          | `?attr/colorSurface`
-**Flag for default margins** | `app:defaultMarginsEnabled` | --                                          | `true`
-**Flag for navigation icon** | `app:hideNavigationIcon`    | --                                          | `false`
+Element                                  | Attribute                     | Related method(s)                           | Default value
+---------------------------------------- | ----------------------------- | ------------------------------------------- | -------------
+**Max Width**                            | `android:maxWidth`            | `setMaxWidth`<br/>`getMaxWidth`             | `-1` (unset)
+**Flag for enabling adaptive max width** | `app:adaptiveMaxWidthEnabled` | --                                          | `false`
+**Min height**                           | `android:minHeight`           | `setMinHeight`<br/>`getMinHeight`           | `@dimen/m3_searchbar_height`
+**Search text appearance**               | `android:textAppearance`      | `setTextAppearance`<br/>`getTextAppearance` | `@style/TextAppearance.Material3.SearchBar`
+**Search text**                          | `android:text`                | `setText`<br/>`getText`                     | `null`
+**Search hint**                          | `android:hint`                | `setHint`<br/>`getHint`                     | `null`
+**Search text centered**                 | `app:textCentered`            | `setTextCentered`<br/>`getTextCentered`     | `false`
+**Color**                                | `app:backgroundTint`          | --                                          | `?attr/colorSurfaceContainerHigh`
+**Lift On Scroll**                       | `app:liftOnScroll`            | --                                          | `false`
+**Lift On Scroll Color**                 | `app:liftOnScrollColor`       | --                                          | `?attr/colorSurfaceContainerHighest`
+**Flag for default margins**             | `app:defaultMarginsEnabled`   | --                                          | `true`
+**Flag for navigation icon**             | `app:hideNavigationIcon`      | --                                          | `false`
 
 ## Styles
 
-Element                      | Style
----------------------------- | ----------------------------
-**Search Bar Default style** | `Widget.Material3.SearchBar`
+Element                       | Style
+----------------------------- | ----------------------------
+**Search Bar Default style**  | `Widget.Material3.SearchBar`
+**Search View Toolbar style** | `Widget.Material3.SearchView.Toolbar`
+**Search View Toolbar height**| `@dimen/m3_searchview_height`
 
 Default search bar style theme attribute: `?attr/materialSearchBarStyle`.
 
+Search view toolbar theme attribute: `?attr/materialSearchViewToolbarStyle`.
+Search view toolbar height theme attribute:
+`?attr/materialSearchViewToolbarHeight`.
+
 ### Scrolling Behavior
 
-The `SearchBar` can either be used as a fixed or scroll-away search field.
+The `SearchBar` can either be used as a fixed, scroll-away, or lift on scroll
+search field.
 
 #### Fixed Mode
 
 To set up the fixed mode, simply position the `SearchBar` on top of the rest of
-your layout's contents and do not set up any scrolling behaviors. It will remain
-in place as the content is scrolled beneath it.
+your layout's contents and do not set up any scrolling behaviors or
+AppBarLayout. The `SearchBar` will remain fixed in place as the content is
+scrolled beneath it.
 
 #### Scroll-away Mode
 
@@ -125,7 +150,26 @@ the scrolling view (usually a `RecyclerView` or `NestedScrollView`) in the
 scrolling view. This scrolling behavior makes the `AppBarLayout` transparent and
 not elevated so there are no undesirable shadows. It also adjusts the scrolling
 child so that the `SearchBar` will overlap the rest of your content and appear
-to be floating above it. See the [XML usage](#usage) section below for an
+to be floating above it. See the
+[Putting it all together](#putting-it-all-together) section below for an example
+of how to set up this behavior.
+
+Additionally, if your app is going edge-to-edge, consider adding
+`app:statusBarForeground="?attr/colorSurface"` to your `AppBarLayout` in order
+to avoid overlap between the `SearchBar` and status bar content on scroll.
+
+#### Lift On Scroll Mode
+
+To set up the lift on scroll mode, use a top-level `CoordinatorLayout` and place
+the `SearchBar` within an `AppBarLayout`. Then, place the `AppBarLayout` below
+the scrolling view (usually a `RecyclerView` or `NestedScrollView`) in the
+`CoordinatorLayout`, and set
+`app:layout_behavior="@string/appbar_scrolling_view_behavior"` on the scrolling
+view. On the `SearchBar`, set `app:liftOnScroll=true` and set a
+`app:liftOnScrollColor` to change the color of the `SearchBar` as the
+`AppBarLayout` is lifting.
+
+See the [Putting it all together](#putting-it-all-together) section below for an
 example of how to set up this behavior.
 
 ### Toolbar Transitions
@@ -149,11 +193,6 @@ if (searchBar.collapse(contextualToolbar, appBarLayout)) {
 }
 ```
 
-## API and source code
-
-*   [Class definition](https://developer.android.com/reference/com/google/android/material/search/SearchBar)
-*   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/search/SearchBar.java)
-
 ## Search View
 
 The `SearchView` component provides an implementation of a full-screen search
@@ -173,7 +212,12 @@ searchView.setOnMenuItemClickListener(
     });
 ```
 
-Additionally, here is an example of how you can carry over the search text to
+Additionally, `SearchView` exposes its main `EditText` via a `getEditText()`
+method, so you can use any of the traditional
+[EditText APIs](https://developer.android.com/reference/android/widget/EditText)
+to configure the search field (`setText()`, `addTextChangedListener()`, etc.).
+
+Here is an example of how you can carry over the search text to
 the `SearchBar`, as well as hide the `SearchView` when the user finishes typing
 and presses enter:
 
@@ -211,7 +255,7 @@ Element                            | Attribute                    | Related meth
 **Search text appearance**         | `android:textAppearance`     | `setTextAppearance`<br/>`getTextAppearance` | `@style/TextAppearance.Material3.SearchBar`
 **Search text**                    | `android:text`               | `setText`<br/>`getText`                     | `null`
 **Search hint**                    | `android:hint`               | `setHint`<br/>`getHint`                     | `null`
-**Color**                          | `app:backgroundTint`         | --                                          | `?attr/colorSurface`
+**Color**                          | `app:backgroundTint`         | --                                          | `?attr/colorSurfaceContainerHigh`
 **Flag for navigation icon**       | `app:hideNavigationIcon`     | --                                          | `true`
 **Flag for `DrawerArrowDrawable`** | `app:useDrawerArrowDrawable` | --                                          | `false`
 **Flag for soft keyboard**         | `app:autoShowKeyboard`       | --                                          | `true`
@@ -278,9 +322,7 @@ Lastly, if you don't want the soft keyboard to show automatically when the
 
 To make sure that the `SearchBar` doesn't appear underneath the translucent
 status bar, you can wrap it in a `FrameLayout` which has the
-`android:fitsSystemWindows` attribute set to `true`. For an example of how to
-set this up in XML, take a look at the
-[Search Bar Maps demo][search-bar-usage-maps].
+`android:fitsSystemWindows` attribute set to `true`.
 
 Additionally, you should not set the `android:fitsSystemWindows` attribute on
 the `SearchView`. If you are using either `FLAG_TRANSLUCENT_STATUS`
@@ -305,6 +347,27 @@ label, "To:", being shown before the search `EditText`.
 Additionally, with this pattern it is common to hide the back button to reduce
 clutter, as navigation can be handled outside of the search view. This can be
 accomplished by setting `app:hideNavigationIcon="true"` on your `SearchView`.
+
+## Search History, Suggestions, and Results
+
+`SearchView` is a view group component, meaning you can nest content inside of
+it such as:
+
+- Search history when the `SearchView` is first expanded
+- Search suggestions when the user is typing
+- Search results once the user submits the search
+
+```xml
+  <com.google.android.material.search.SearchView
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:hint="@string/searchbar_hint"
+      app:layout_anchor="@id/search_bar">
+
+    <!-- Search suggestions/results go here (ScrollView, RecyclerView, etc.). -->
+
+  </com.google.android.material.search.SearchView>
+```
 
 ## Putting it all together
 
@@ -339,7 +402,9 @@ Putting it all together and using the scroll-away mode, the `SearchBar` and
       android:layout_height="match_parent"
       android:hint="@string/searchbar_hint"
       app:layout_anchor="@id/search_bar">
+
     <!-- Search suggestions/results go here (ScrollView, RecyclerView, etc.). -->
+
   </com.google.android.material.search.SearchView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
 ```
@@ -350,6 +415,45 @@ sets up the behavior of showing the `SearchView` when the `SearchBar` is tapped,
 as well as the expand and collapse animations. If you can't use a
 `CoordinatorLayout`, instead you can call the `SearchView#setUpWithSearchBar`
 method to achieve the same result.
+
+Alternatively, an example of the lift on scroll mode is below:
+
+```xml
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+  <!-- NestedScrollingChild goes here (NestedScrollView, RecyclerView, etc.). -->
+  <androidx.core.widget.NestedScrollView
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      app:layout_behavior="@string/appbar_scrolling_view_behavior">
+    <!-- Screen content goes here. -->
+  </androidx.core.widget.NestedScrollView>
+
+  <com.google.android.material.appbar.AppBarLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content">
+    <com.google.android.material.search.SearchBar
+        android:id="@+id/search_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/searchbar_hint"
+        app:liftOnScroll="true"
+        app:liftOnScrollColor="?attr/colorSurfaceContainerHighest"/>
+  </com.google.android.material.appbar.AppBarLayout>
+
+  <com.google.android.material.search.SearchView
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:hint="@string/searchbar_hint"
+      app:layout_anchor="@id/search_bar">
+
+    <!-- Search suggestions/results go here (ScrollView, RecyclerView, etc.). -->
+
+  </com.google.android.material.search.SearchView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
+```
 
 ## Predictive Back
 

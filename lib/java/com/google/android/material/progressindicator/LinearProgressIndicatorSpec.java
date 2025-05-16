@@ -18,12 +18,16 @@ package com.google.android.material.progressindicator;
 
 import com.google.android.material.R;
 
+import static java.lang.Math.min;
+
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.util.AttributeSet;
+import android.util.TypedValue;
 import androidx.annotation.AttrRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.Px;
 import androidx.annotation.StyleRes;
 import com.google.android.material.internal.ThemeEnforcement;
 import com.google.android.material.progressindicator.LinearProgressIndicator.IndeterminateAnimationType;
@@ -43,6 +47,17 @@ public final class LinearProgressIndicatorSpec extends BaseProgressIndicatorSpec
   @IndicatorDirection public int indicatorDirection;
 
   boolean drawHorizontallyInverse;
+
+  /** The size of the stop indicator at the end of the track. */
+  @Px public int trackStopIndicatorSize;
+
+  /** The padding of the stop indicator at the end of the track. */
+  @Nullable public Integer trackStopIndicatorPadding;
+
+  @Px public int trackInnerCornerRadius;
+  public float trackInnerCornerRadiusFraction;
+  public boolean useRelativeTrackInnerCornerRadius;
+  public boolean hasInnerCornerRadius;
 
   /**
    * Instantiates the spec for {@link LinearProgressIndicator}.
@@ -86,6 +101,32 @@ public final class LinearProgressIndicatorSpec extends BaseProgressIndicatorSpec
         a.getInt(
             R.styleable.LinearProgressIndicator_indicatorDirectionLinear,
             LinearProgressIndicator.INDICATOR_DIRECTION_LEFT_TO_RIGHT);
+    trackStopIndicatorSize =
+        min(
+            a.getDimensionPixelSize(R.styleable.LinearProgressIndicator_trackStopIndicatorSize, 0),
+            trackThickness);
+    if (a.hasValue(R.styleable.LinearProgressIndicator_trackStopIndicatorPadding)) {
+      trackStopIndicatorPadding =
+          a.getDimensionPixelSize(R.styleable.LinearProgressIndicator_trackStopIndicatorPadding, 0);
+    }
+    TypedValue trackInnerCornerRadiusValue =
+        a.peekValue(R.styleable.LinearProgressIndicator_trackInnerCornerRadius);
+    if (trackInnerCornerRadiusValue != null) {
+      if (trackInnerCornerRadiusValue.type == TypedValue.TYPE_DIMENSION) {
+        trackInnerCornerRadius =
+            min(
+                TypedValue.complexToDimensionPixelSize(
+                    trackInnerCornerRadiusValue.data, a.getResources().getDisplayMetrics()),
+                trackThickness / 2);
+        useRelativeTrackInnerCornerRadius = false;
+        hasInnerCornerRadius = true;
+      } else if (trackInnerCornerRadiusValue.type == TypedValue.TYPE_FRACTION) {
+        trackInnerCornerRadiusFraction =
+            min(trackInnerCornerRadiusValue.getFraction(1.0f, 1.0f), 0.5f);
+        useRelativeTrackInnerCornerRadius = true;
+        hasInnerCornerRadius = true;
+      }
+    }
     a.recycle();
 
     validateSpec();
@@ -94,15 +135,35 @@ public final class LinearProgressIndicatorSpec extends BaseProgressIndicatorSpec
         indicatorDirection == LinearProgressIndicator.INDICATOR_DIRECTION_RIGHT_TO_LEFT;
   }
 
+  public int getTrackInnerCornerRadiusInPx() {
+    return !hasInnerCornerRadius
+        ? getTrackCornerRadiusInPx()
+        : useRelativeTrackInnerCornerRadius
+            ? (int) (trackThickness * trackInnerCornerRadiusFraction)
+            : trackInnerCornerRadius;
+  }
+
+  @Override
+  public boolean useStrokeCap() {
+    return super.useStrokeCap() && getTrackInnerCornerRadiusInPx() == getTrackCornerRadiusInPx();
+  }
+
   @Override
   void validateSpec() {
+    super.validateSpec();
+    if (trackStopIndicatorSize < 0) {
+      // Throws an exception if trying to use a negative stop indicator size.
+      throw new IllegalArgumentException("Stop indicator size must be >= 0.");
+    }
     if (indeterminateAnimationType
         == LinearProgressIndicator.INDETERMINATE_ANIMATION_TYPE_CONTIGUOUS) {
-      if (trackCornerRadius > 0) {
+      if ((getTrackCornerRadiusInPx() > 0
+              || (hasInnerCornerRadius && getTrackInnerCornerRadiusInPx() > 0))
+          && indicatorTrackGapSize == 0) {
         // Throws an exception if trying to use the cornered indicator/track with contiguous
-        // indeterminate animation type.
+        // indeterminate animation type without gap.
         throw new IllegalArgumentException(
-            "Rounded corners are not supported in contiguous indeterminate animation.");
+            "Rounded corners without gap are not supported in contiguous indeterminate animation.");
       }
       if (indicatorColors.length < 3) {
         // Throws an exception if trying to set contiguous indeterminate animation with less than 3

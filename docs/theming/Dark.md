@@ -22,7 +22,7 @@ Starting with [Android Q][dark-theme-dac-docs], users are now able to switch
 their device to a dark theme via a new system setting, which applies to both the
 Android system UI and apps running on the device.
 
-## Design & API documentation
+## Design and API Documentation
 
 -   [Material Design guidelines: Dark Theme][dark-theme-mdc-spec]
 -   [Android Q Dark Theme Documentation][dark-theme-dac-docs]
@@ -103,6 +103,10 @@ for guidance on how you can adjust your brand colors for a dark theme.
 
 ## Elevation overlays
 
+**Note:** Surface with elevation overlays has been replaced in Material
+components with the
+[tonal surface color system](./Color.md#using-surface-colors).
+
 In addition to the color palette adjustments mentioned above, communicating the
 hierarchy of a UI via elevation requires some dark theme-specific
 considerations.
@@ -118,10 +122,6 @@ This is accomplished via elevation overlays, which are semi-transparent
 color. The semi-transparent alpha percentage is calculated using an equation
 based on elevation, which results in higher alpha percentages at higher
 elevations, and therefore lighter surfaces.
-
-Starting with the `Theme.Material3.*` themes, elevation overlays are now enabled
-for light themes as well, in order to consistently communicate elevation
-hierarchy with color.
 
 **Note:** we avoid overdraw with the elevation overlays by calculating a
 composite blend of the surface color with the overlay color and using that as
@@ -163,7 +163,7 @@ Attribute Name              |Description                                        
 have to set these attributes yourself because the Material themes already set up
 the defaults, above.
 
-### Custom views & non-Material Components
+### Custom views and non-Material Components
 
 If you would like to apply elevation overlays to your custom views or any
 non-Material views that are elevated surfaces, you can use the

@@ -25,13 +25,11 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.content.res.Resources;
-import android.os.Build.VERSION_CODES;
 import android.view.View;
 import android.view.ViewGroup;
-import android.window.BackEvent;
+import androidx.activity.BackEventCompat;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.annotation.RestrictTo;
 import androidx.annotation.VisibleForTesting;
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
@@ -59,31 +57,39 @@ public class MaterialBottomContainerBackHelper extends MaterialBackAnimationHelp
         resources.getDimension(R.dimen.m3_back_progress_bottom_container_max_scale_y_distance);
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
-  public void startBackProgress(@NonNull BackEvent backEvent) {
+  public void startBackProgress(@NonNull BackEventCompat backEvent) {
     super.onStartBackProgress(backEvent);
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
-  public void updateBackProgress(@NonNull BackEvent backEvent) {
-    super.onUpdateBackProgress(backEvent);
+  public void updateBackProgress(@NonNull BackEventCompat backEvent) {
+    if (super.onUpdateBackProgress(backEvent) == null) {
+      return;
+    }
 
     updateBackProgress(backEvent.getProgress());
   }
 
   @VisibleForTesting
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   public void updateBackProgress(float progress) {
     progress = interpolateProgress(progress);
 
     float width = view.getWidth();
     float height = view.getHeight();
+    if (width <= 0f || height <= 0f) {
+      return;
+    }
+
     float maxScaleXDelta = maxScaleXDistance / width;
     float maxScaleYDelta = maxScaleYDistance / height;
     float scaleXDelta = AnimationUtils.lerp(0, maxScaleXDelta, progress);
     float scaleYDelta = AnimationUtils.lerp(0, maxScaleYDelta, progress);
     float scaleX = 1 - scaleXDelta;
     float scaleY = 1 - scaleYDelta;
+
+    if (Float.isNaN(scaleX) || Float.isNaN(scaleY)) {
+      return;
+    }
+
     view.setScaleX(scaleX);
     view.setPivotY(height);
     view.setScaleY(scaleY);
@@ -94,14 +100,13 @@ public class MaterialBottomContainerBackHelper extends MaterialBackAnimationHelp
         View childView = viewGroup.getChildAt(i);
         // Preserve the original aspect ratio and container alignment of the child content.
         childView.setPivotY(-childView.getTop());
-        childView.setScaleY(scaleX / scaleY);
+        childView.setScaleY(scaleY != 0f ? scaleX / scaleY : 1f);
       }
     }
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   public void finishBackProgressPersistent(
-      @NonNull BackEvent backEvent, @Nullable AnimatorListener animatorListener) {
+      @NonNull BackEventCompat backEvent, @Nullable AnimatorListener animatorListener) {
     Animator animator = createResetScaleAnimator();
     animator.setDuration(
         AnimationUtils.lerp(hideDurationMax, hideDurationMin, backEvent.getProgress()));
@@ -111,9 +116,8 @@ public class MaterialBottomContainerBackHelper extends MaterialBackAnimationHelp
     animator.start();
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   public void finishBackProgressNotPersistent(
-      @NonNull BackEvent backEvent, @Nullable AnimatorListener animatorListener) {
+      @NonNull BackEventCompat backEvent, @Nullable AnimatorListener animatorListener) {
     float scaledHeight = view.getHeight() * view.getScaleY();
     ObjectAnimator finishAnimator = ObjectAnimator.ofFloat(view, View.TRANSLATION_Y, scaledHeight);
     finishAnimator.setInterpolator(new FastOutSlowInInterpolator());
@@ -133,9 +137,10 @@ public class MaterialBottomContainerBackHelper extends MaterialBackAnimationHelp
     finishAnimator.start();
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   public void cancelBackProgress() {
-    super.onCancelBackProgress();
+    if (super.onCancelBackProgress() == null) {
+      return;
+    }
 
     Animator animator = createResetScaleAnimator();
     animator.setDuration(cancelDuration);

@@ -30,6 +30,7 @@ import androidx.annotation.NonNull;
 import androidx.test.core.app.ApplicationProvider;
 import com.google.android.material.carousel.CarouselHelper.CarouselTestAdapter;
 import com.google.android.material.carousel.CarouselHelper.WrappedCarouselLayoutManager;
+import com.google.android.material.carousel.CarouselStrategy.StrategyType;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -62,7 +63,7 @@ public class CarouselSnapHelperTest {
     layoutManager.setCarouselStrategy(
         new CarouselStrategy() {
           @Override
-          KeylineState onFirstChildMeasuredWithMargins(
+          public KeylineState onFirstChildMeasuredWithMargins(
               @NonNull Carousel carousel, @NonNull View child) {
             return getTestCenteredKeylineState();
           }
@@ -119,11 +120,11 @@ public class CarouselSnapHelperTest {
             layoutManager, snapHelper.findSnapView(layoutManager));
     assertThat(distance[0]).isEqualTo(50);
 
-    int horizontalScrollBefore = layoutManager.horizontalScrollOffset;
+    int horizontalScrollBefore = layoutManager.scrollOffset;
     // If scrolled enough, the snap view should be the item at position 4.
     // We scrolled by the item width, so the snap distance should still be 50.
     scrollHorizontallyBy(recyclerView, layoutManager, DEFAULT_ITEM_WIDTH);
-    int horizontalScrollAfter = layoutManager.horizontalScrollOffset;
+    int horizontalScrollAfter = layoutManager.scrollOffset;
 
     distance =
         snapHelper.calculateDistanceToFinalSnap(
@@ -134,19 +135,20 @@ public class CarouselSnapHelperTest {
     // original snap distance if keylines stayed the same) minus the difference in focal keyline
     // location between keyline states.
     KeylineStateList stateList =
-        KeylineStateList.from(layoutManager, getTestCenteredKeylineState());
+        KeylineStateList.from(
+            layoutManager, getTestCenteredKeylineState(), 0, 0, 0, StrategyType.CONTAINED);
     KeylineState target1 =
         stateList.getShiftedState(
             horizontalScrollBefore,
-            layoutManager.minHorizontalScroll,
-            layoutManager.maxHorizontalScroll,
+            layoutManager.minScroll,
+            layoutManager.maxScroll,
             true);
     float firstTargetKeylineLoc = target1.getFirstFocalKeyline().loc;
     KeylineState target2 =
         stateList.getShiftedState(
             horizontalScrollAfter,
-            layoutManager.minHorizontalScroll,
-            layoutManager.maxHorizontalScroll,
+            layoutManager.minScroll,
+            layoutManager.maxScroll,
             true);
     float secondTargetKeylineLoc = target2.getFirstFocalKeyline().loc;
 

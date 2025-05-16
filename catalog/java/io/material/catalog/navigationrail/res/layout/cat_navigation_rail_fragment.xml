@@ -29,7 +29,8 @@
     app:menu="@menu/navigation_rail_menu"
     android:fitsSystemWindows="false"/>
 
-  <ScrollView
+  <androidx.core.widget.NestedScrollView
+      android:id="@+id/cat_navigation_rail_nested_scroll_view"
       android:layout_width="0dp"
       android:layout_height="wrap_content"
       android:layout_weight="1"
@@ -124,7 +125,22 @@
             android:layout_width="wrap_content"
             android:layout_height="48dp"/>
       </LinearLayout>
-
+      <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <TextView
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_gravity="end|center_vertical"
+          android:labelFor="@+id/bold_text_switch"
+          android:text="@string/cat_navigation_rail_label_active_bold" />
+        <com.google.android.material.materialswitch.MaterialSwitch
+          android:id="@+id/bold_text_switch"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="12dp" />
+      </LinearLayout>
     </LinearLayout>
-  </ScrollView>
+  </androidx.core.widget.NestedScrollView>
 </LinearLayout>

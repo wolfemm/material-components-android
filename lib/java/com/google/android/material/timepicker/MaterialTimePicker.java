@@ -51,7 +51,6 @@ import androidx.annotation.RestrictTo;
 import androidx.annotation.StringRes;
 import androidx.annotation.StyleRes;
 import androidx.annotation.VisibleForTesting;
-import androidx.core.view.ViewCompat;
 import androidx.core.view.accessibility.AccessibilityEventCompat;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.resources.MaterialAttributes;
@@ -63,7 +62,14 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-/** A {@link Dialog} with a clock display and a clock face to choose the time. */
+/**
+ * A {@link Dialog} with a clock display and a clock face to choose the time.
+ *
+ * <p>For more information, see the <a
+ * href="https://github.com/material-components/material-components-android/blob/master/docs/components/TimePicker.md">component
+ * developer guidance</a> and <a href="https://material.io/components/time-pickers/overview">design
+ * guidelines</a>.
+ */
 public final class MaterialTimePicker extends DialogFragment implements OnDoubleTapListener {
 
   private final Set<OnClickListener> positiveButtonListeners = new LinkedHashSet<>();
@@ -208,7 +214,7 @@ public final class MaterialTimePicker extends DialogFragment implements OnDouble
     // On some Android APIs the dialog won't wrap content by default. Explicitly update here.
     window.setLayout(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
     // This has to be done after requestFeature() is called on API <= 23.
-    background.setElevation(ViewCompat.getElevation(window.getDecorView()));
+    background.setElevation(window.getDecorView().getElevation());
 
     return dialog;
   }

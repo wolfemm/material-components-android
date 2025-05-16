@@ -23,8 +23,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.content.res.TypedArray;
-import android.os.Build.VERSION;
-import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
@@ -44,7 +42,6 @@ import androidx.annotation.DimenRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
-import androidx.core.view.MarginLayoutParamsCompat;
 import androidx.core.view.MenuItemCompat;
 import androidx.core.view.ViewCompat;
 import com.google.android.material.button.MaterialButton;
@@ -97,7 +94,10 @@ public abstract class DemoLandingFragment extends DaggerFragment {
     TypedArray a =
         toolbarContext
             .getTheme()
-            .obtainStyledAttributes(new int[] {R.attr.colorOnSurfaceVariant, R.attr.colorPrimary});
+            .obtainStyledAttributes(
+                new int[] {
+                  com.google.android.material.R.attr.colorOnSurfaceVariant, androidx.appcompat.R.attr.colorPrimary
+                });
     menuIconColorUnchecked = a.getColor(0, 0);
     menuIconColorChecked = a.getColor(1, 0);
     a.recycle();
@@ -239,9 +239,7 @@ public abstract class DemoLandingFragment extends DaggerFragment {
       Intent intent, @Nullable View sharedElement, @Nullable String transitionName) {
     intent.putExtra(DemoActivity.EXTRA_DEMO_TITLE, getString(getTitleResId()));
 
-    if (VERSION.SDK_INT >= VERSION_CODES.LOLLIPOP
-        && sharedElement != null
-        && transitionName != null) {
+    if (sharedElement != null && transitionName != null) {
       intent.putExtra(DemoActivity.EXTRA_TRANSITION_NAME, transitionName);
 
       // Set up shared element transition and disable overlay so views don't show above system bars
@@ -296,7 +294,7 @@ public abstract class DemoLandingFragment extends DaggerFragment {
   private void setMarginStart(View view, @DimenRes int marginResId) {
     int margin = getResources().getDimensionPixelOffset(marginResId);
     MarginLayoutParams layoutParams = (MarginLayoutParams) view.getLayoutParams();
-    MarginLayoutParamsCompat.setMarginStart(layoutParams, margin);
+    layoutParams.setMarginStart(margin);
   }
 
   @Override

@@ -20,8 +20,6 @@ import io.material.catalog.R;
 
 import static android.view.View.NO_ID;
 
-import android.os.Build.VERSION;
-import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -188,7 +186,7 @@ public class SideSheetMainDemoFragment extends DemoFragment {
         });
   }
 
-  private void setupBackHandling(SideSheetBehavior<View> sideSheetBehavior) {
+  private void setupBackHandling(View sideSheet, SideSheetBehavior<View> sideSheetBehavior) {
     OnBackPressedCallback nonModalOnBackPressedCallback =
         createNonModalOnBackPressedCallback(sideSheetBehavior);
     requireActivity().getOnBackPressedDispatcher().addCallback(this, nonModalOnBackPressedCallback);
@@ -196,23 +194,30 @@ public class SideSheetMainDemoFragment extends DemoFragment {
         new SideSheetCallback() {
           @Override
           public void onStateChanged(@NonNull View sheet, int newState) {
-            switch (newState) {
-              case SideSheetBehavior.STATE_EXPANDED:
-              case SideSheetBehavior.STATE_SETTLING:
-                nonModalOnBackPressedCallback.setEnabled(true);
-                break;
-              case SideSheetBehavior.STATE_HIDDEN:
-                nonModalOnBackPressedCallback.setEnabled(false);
-                break;
-              case SideSheetBehavior.STATE_DRAGGING:
-              default:
-                break;
-            }
+            updateBackHandlingEnabled(nonModalOnBackPressedCallback, newState);
           }
 
           @Override
           public void onSlide(@NonNull View sheet, float slideOffset) {}
         });
+    sideSheet.post(
+        () ->
+            updateBackHandlingEnabled(nonModalOnBackPressedCallback, sideSheetBehavior.getState()));
+  }
+
+  private void updateBackHandlingEnabled(OnBackPressedCallback onBackPressedCallback, int state) {
+    switch (state) {
+      case SideSheetBehavior.STATE_EXPANDED:
+      case SideSheetBehavior.STATE_SETTLING:
+        onBackPressedCallback.setEnabled(true);
+        break;
+      case SideSheetBehavior.STATE_HIDDEN:
+        onBackPressedCallback.setEnabled(false);
+        break;
+      case SideSheetBehavior.STATE_DRAGGING:
+      default:
+        break;
+    }
   }
 
   private View setUpSideSheet(
@@ -229,7 +234,7 @@ public class SideSheetMainDemoFragment extends DemoFragment {
     View standardSideSheetCloseIconButton = sideSheet.findViewById(closeIconButtonId);
     standardSideSheetCloseIconButton.setOnClickListener(v -> hideSideSheet(sideSheetBehavior));
 
-    setupBackHandling(sideSheetBehavior);
+    setupBackHandling(sideSheet, sideSheetBehavior);
 
     sideSheetViews.add(sideSheet);
 
@@ -239,16 +244,17 @@ public class SideSheetMainDemoFragment extends DemoFragment {
   private void setSideSheetCallback(
       View sideSheet, @IdRes int stateTextViewId, @IdRes int slideOffsetTextId) {
     SideSheetBehavior<View> sideSheetBehavior = SideSheetBehavior.from(sideSheet);
+    TextView stateTextView = sideSheet.findViewById(stateTextViewId);
     sideSheetBehavior.addCallback(
-        createSideSheetCallback(
-            sideSheet.findViewById(stateTextViewId), sideSheet.findViewById(slideOffsetTextId)));
+        createSideSheetCallback(stateTextView, sideSheet.findViewById(slideOffsetTextId)));
+    sideSheet.post(() -> updateStateTextView(stateTextView, sideSheetBehavior.getState()));
   }
 
   private void setUpDetachedModalSheet() {
     setUpModalSheet(
         getDetachedModalThemeOverlayResId(),
         R.layout.cat_sidesheet_content,
-        R.id.m3_side_sheet,
+        com.google.android.material.R.id.m3_side_sheet,
         R.id.side_sheet_title_text,
         R.string.cat_sidesheet_modal_detached_title,
         showDetachedModalSheetButton,
@@ -258,7 +264,7 @@ public class SideSheetMainDemoFragment extends DemoFragment {
   private void setUpModalSheet() {
     setUpModalSheet(
         R.layout.cat_sidesheet_content,
-        R.id.m3_side_sheet,
+        com.google.android.material.R.id.m3_side_sheet,
         R.id.side_sheet_title_text,
         R.string.cat_sidesheet_modal_title,
         showModalSheetButton,
@@ -375,22 +381,7 @@ public class SideSheetMainDemoFragment extends DemoFragment {
     return new SideSheetCallback() {
       @Override
       public void onStateChanged(@NonNull View sheet, int newState) {
-        stateTextView.setVisibility(View.VISIBLE);
-
-        switch (newState) {
-          case SideSheetBehavior.STATE_DRAGGING:
-            stateTextView.setText(R.string.cat_sidesheet_state_dragging);
-            break;
-          case SideSheetBehavior.STATE_EXPANDED:
-            stateTextView.setText(R.string.cat_sidesheet_state_expanded);
-            break;
-          case SideSheetBehavior.STATE_SETTLING:
-            stateTextView.setText(R.string.cat_sidesheet_state_settling);
-            break;
-          case SideSheetBehavior.STATE_HIDDEN:
-          default:
-            break;
-        }
+        updateStateTextView(stateTextView, newState);
       }
 
       @Override
@@ -402,21 +393,36 @@ public class SideSheetMainDemoFragment extends DemoFragment {
     };
   }
 
+  private void updateStateTextView(@NonNull TextView stateTextView, int state) {
+    stateTextView.setVisibility(View.VISIBLE);
+
+    switch (state) {
+      case SideSheetBehavior.STATE_DRAGGING:
+        stateTextView.setText(R.string.cat_sidesheet_state_dragging);
+        break;
+      case SideSheetBehavior.STATE_EXPANDED:
+        stateTextView.setText(R.string.cat_sidesheet_state_expanded);
+        break;
+      case SideSheetBehavior.STATE_SETTLING:
+        stateTextView.setText(R.string.cat_sidesheet_state_settling);
+        break;
+      case SideSheetBehavior.STATE_HIDDEN:
+      default:
+        break;
+    }
+  }
+
   private OnBackPressedCallback createNonModalOnBackPressedCallback(
       SideSheetBehavior<View> behavior) {
     return new OnBackPressedCallback(/* enabled= */ false) {
       @Override
       public void handleOnBackStarted(@NonNull BackEventCompat backEvent) {
-        if (VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
-          behavior.startBackProgress(backEvent.toBackEvent());
-        }
+        behavior.startBackProgress(backEvent);
       }
 
       @Override
       public void handleOnBackProgressed(@NonNull BackEventCompat backEvent) {
-        if (VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
-          behavior.updateBackProgress(backEvent.toBackEvent());
-        }
+        behavior.updateBackProgress(backEvent);
       }
 
       @Override
@@ -426,9 +432,7 @@ public class SideSheetMainDemoFragment extends DemoFragment {
 
       @Override
       public void handleOnBackCancelled() {
-        if (VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
-          behavior.cancelBackProgress();
-        }
+        behavior.cancelBackProgress();
       }
     };
   }

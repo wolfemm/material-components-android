@@ -19,10 +19,12 @@ package com.google.android.material.carousel;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.FrameLayout;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -40,12 +42,18 @@ import com.google.android.material.shape.ShapeableDelegate;
 /** A {@link FrameLayout} than is able to mask itself and all children. */
 public class MaskableFrameLayout extends FrameLayout implements Maskable, Shapeable {
 
-  private float maskXPercentage = 0F;
+  private static final int NOT_SET = -1;
+
+  private float maskXPercentage = NOT_SET;
   private final RectF maskRect = new RectF();
+  private final Rect screenBoundsRect = new Rect();
   @Nullable private OnMaskChangedListener onMaskChangedListener;
   @NonNull private ShapeAppearanceModel shapeAppearanceModel;
   private final ShapeableDelegate shapeableDelegate = ShapeableDelegate.create(this);
   @Nullable private Boolean savedForceCompatClippingEnabled = null;
+  @Nullable private OnHoverListener hoverListener;
+
+  private boolean isHovered = false;
 
   public MaskableFrameLayout(@NonNull Context context) {
     this(context, null);
@@ -65,7 +73,14 @@ public class MaskableFrameLayout extends FrameLayout implements Maskable, Shapea
   @Override
   protected void onSizeChanged(int w, int h, int oldw, int oldh) {
     super.onSizeChanged(w, h, oldw, oldh);
-    onMaskChanged();
+    if (maskXPercentage != NOT_SET) {
+      updateMaskRectForMaskXPercentage();
+    }
+  }
+
+  @Override
+  public void getFocusedRect(Rect r) {
+    r.set((int) maskRect.left, (int) maskRect.top, (int) maskRect.right, (int) maskRect.bottom);
   }
 
   @Override
@@ -114,12 +129,21 @@ public class MaskableFrameLayout extends FrameLayout implements Maskable, Shapea
    * Sets the percentage by which this {@link View} masks by along the x axis.
    *
    * @param percentage 0 when this view is fully unmasked. 1 when this view is fully masked.
+   * @deprecated This is no longer used as {@link CarouselLayoutManager} calculates its own mask
+   *     percentages.
    */
   @Override
+  @Deprecated
   public void setMaskXPercentage(float percentage) {
     percentage = MathUtils.clamp(percentage, 0F, 1F);
     if (maskXPercentage != percentage) {
       this.maskXPercentage = percentage;
+      updateMaskRectForMaskXPercentage();
+    }
+  }
+
+  private void updateMaskRectForMaskXPercentage() {
+    if (maskXPercentage != NOT_SET) {
       // Translate the percentage into an actual pixel value of how much of this view should be
       // masked away.
       float maskWidth = AnimationUtils.lerp(0f, getWidth() / 2F, 0f, 1f, maskXPercentage);
@@ -142,8 +166,11 @@ public class MaskableFrameLayout extends FrameLayout implements Maskable, Shapea
    * Gets the percentage by which this {@link View} is masked by along the x axis.
    *
    * @return a float between 0 and 1 where 0 is fully unmasked and 1 is fully masked.
+   * @deprecated This is no longer used as {@link CarouselLayoutManager} calculates its own mask
+   *     percentages.
    */
   @Override
+  @Deprecated
   public float getMaskXPercentage() {
     return maskXPercentage;
   }
@@ -155,15 +182,18 @@ public class MaskableFrameLayout extends FrameLayout implements Maskable, Shapea
     return maskRect;
   }
 
+  /**
+   * Sets an {@link OnMaskChangedListener}.
+   *
+   * @param onMaskChangedListener a listener to receive callbacks for changes in the mask or null
+   *    to clear the listener.
+   */
   @Override
   public void setOnMaskChangedListener(@Nullable OnMaskChangedListener onMaskChangedListener) {
     this.onMaskChangedListener = onMaskChangedListener;
   }
 
   private void onMaskChanged() {
-    if (getWidth() == 0) {
-      return;
-    }
     shapeableDelegate.onMaskChanged(this, maskRect);
     if (onMaskChangedListener != null) {
       onMaskChangedListener.onMaskChanged(maskRect);
@@ -196,7 +226,82 @@ public class MaskableFrameLayout extends FrameLayout implements Maskable, Shapea
   }
 
   @Override
+  public boolean onInterceptTouchEvent(MotionEvent event) {
+    // Intercept touch events outside the masked bounds and prevent them from
+    // reaching the children.
+    if (!maskRect.isEmpty()) {
+      float x = event.getX();
+      float y = event.getY();
+      if (!maskRect.contains(x, y)) {
+        return true; // Intercept touch events outside the mask
+      }
+    }
+    return super.onInterceptTouchEvent(event);
+  }
+
+  @Override
   protected void dispatchDraw(Canvas canvas) {
     shapeableDelegate.maybeClip(canvas, super::dispatchDraw);
+  }
+
+  @Override
+  public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
+    super.onInitializeAccessibilityNodeInfo(info);
+    // Note: This is a workaround until b/273752775 is resolved. A11y bounds should be set by the
+    // a11y framework.
+    info.getBoundsInScreen(screenBoundsRect);
+
+    // If the child starts from a negative x, the screen bounds are already cut off at the
+    // parent so there is no need to reduce the screen bound's left bound. Similarly for negative y.
+    if (getX() > 0) {
+      screenBoundsRect.left = (int) (screenBoundsRect.left + maskRect.left);
+    }
+    if (getY() > 0) {
+      screenBoundsRect.top = (int) (screenBoundsRect.top + maskRect.top);
+    }
+    screenBoundsRect.right = screenBoundsRect.left + Math.round(maskRect.width());
+    screenBoundsRect.bottom = screenBoundsRect.top + Math.round(maskRect.height());
+
+    info.setBoundsInScreen(screenBoundsRect);
+  }
+
+  @Override
+  public void setOnHoverListener(@Nullable OnHoverListener l) {
+    hoverListener = l;
+  }
+
+  @Override
+  public boolean onHoverEvent(MotionEvent event) {
+    // Only handle hover events that are within the masked bounds of this view.
+    int action = event.getAction();
+    if (!maskRect.isEmpty()
+        && (action == MotionEvent.ACTION_HOVER_ENTER
+            || action == MotionEvent.ACTION_HOVER_EXIT
+            || action== MotionEvent.ACTION_HOVER_MOVE)) {
+      float x = event.getX();
+      float y = event.getY();
+      if (!maskRect.contains(x, y)) {
+        if (isHovered && hoverListener != null) {
+          event.setAction(MotionEvent.ACTION_HOVER_EXIT);
+          hoverListener.onHover(this, event);
+        }
+        isHovered = false;
+        return false;
+      }
+    }
+    if (hoverListener != null) {
+      // If the MaskableFrameLayout is currently not hovered and the action is a move, it
+      // should be changed to an enter action
+      if (!isHovered && action == MotionEvent.ACTION_HOVER_MOVE) {
+        event.setAction(MotionEvent.ACTION_HOVER_ENTER);
+        isHovered = true;
+      }
+      if (action == MotionEvent.ACTION_HOVER_MOVE
+          || action == MotionEvent.ACTION_HOVER_ENTER) {
+        isHovered = true;
+      }
+      hoverListener.onHover(this, event);
+    }
+    return super.onHoverEvent(event);
   }
 }

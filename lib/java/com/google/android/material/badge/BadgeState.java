@@ -20,6 +20,7 @@ import com.google.android.material.R;
 
 import static androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP;
 import static com.google.android.material.badge.BadgeDrawable.BADGE_CONTENT_NOT_TRUNCATED;
+import static com.google.android.material.badge.BadgeDrawable.BADGE_FIXED_EDGE_START;
 import static com.google.android.material.badge.BadgeDrawable.BADGE_RADIUS_NOT_SPECIFIED;
 import static com.google.android.material.badge.BadgeDrawable.OFFSET_ALIGNMENT_MODE_LEGACY;
 import static com.google.android.material.badge.BadgeDrawable.TOP_END;
@@ -44,6 +45,7 @@ import androidx.annotation.StringRes;
 import androidx.annotation.StyleRes;
 import androidx.annotation.StyleableRes;
 import androidx.annotation.XmlRes;
+import com.google.android.material.badge.BadgeDrawable.BadgeFixedEdge;
 import com.google.android.material.badge.BadgeDrawable.BadgeGravity;
 import com.google.android.material.badge.BadgeDrawable.OffsetAlignmentMode;
 import com.google.android.material.drawable.DrawableUtils;
@@ -78,6 +80,9 @@ public final class BadgeState {
 
   @OffsetAlignmentMode
   int offsetAlignmentMode;
+
+  @BadgeFixedEdge
+  int badgeFixedEdge;
 
   BadgeState(
       Context context,
@@ -125,6 +130,9 @@ public final class BadgeState {
 
     offsetAlignmentMode =
         a.getInt(R.styleable.Badge_offsetAlignmentMode, OFFSET_ALIGNMENT_MODE_LEGACY);
+
+    badgeFixedEdge =
+        a.getInt(R.styleable.Badge_badgeFixedEdge, BADGE_FIXED_EDGE_START);
 
     currentState.alpha = storedState.alpha == State.NOT_SET ? 255 : storedState.alpha;
 
@@ -264,8 +272,14 @@ public final class BadgeState {
     currentState.verticalOffsetWithText =
         storedState.verticalOffsetWithText == null
             ? a.getDimensionPixelOffset(
-                R.styleable.Badge_verticalOffsetWithText, currentState.verticalOffsetWithoutText)
+            R.styleable.Badge_verticalOffsetWithText, currentState.verticalOffsetWithoutText)
             : storedState.verticalOffsetWithText;
+
+    currentState.largeFontVerticalOffsetAdjustment =
+        storedState.largeFontVerticalOffsetAdjustment == null
+            ? a.getDimensionPixelOffset(
+            R.styleable.Badge_largeFontVerticalOffsetAdjustment, 0)
+            : storedState.largeFontVerticalOffsetAdjustment;
 
     currentState.additionalHorizontalOffset =
         storedState.additionalHorizontalOffset == null ? 0 : storedState.additionalHorizontalOffset;
@@ -522,6 +536,16 @@ public final class BadgeState {
   }
 
   @Dimension(unit = Dimension.PX)
+  int getLargeFontVerticalOffsetAdjustment() {
+    return currentState.largeFontVerticalOffsetAdjustment;
+  }
+
+  void setLargeFontVerticalOffsetAdjustment(@Dimension(unit = Dimension.PX) int offsetAdjustment) {
+    overridingState.largeFontVerticalOffsetAdjustment = offsetAdjustment;
+    currentState.largeFontVerticalOffsetAdjustment = offsetAdjustment;
+  }
+
+  @Dimension(unit = Dimension.PX)
   int getAdditionalHorizontalOffset() {
     return currentState.additionalHorizontalOffset;
   }
@@ -588,10 +612,14 @@ public final class BadgeState {
     currentState.numberLocale = locale;
   }
 
+  /** Deprecated; badges now adjust to within bounds of first ancestor that clips its children */
+  @Deprecated
   boolean isAutoAdjustedToGrandparentBounds() {
     return currentState.autoAdjustToWithinGrandparentBounds;
   }
 
+  /** Deprecated; badges now adjust to within bounds of first ancestor that clips its children */
+  @Deprecated
   void setAutoAdjustToGrandparentBounds(boolean autoAdjustToGrandparentBounds) {
     overridingState.autoAdjustToWithinGrandparentBounds = autoAdjustToGrandparentBounds;
     currentState.autoAdjustToWithinGrandparentBounds = autoAdjustToGrandparentBounds;
@@ -662,7 +690,12 @@ public final class BadgeState {
     @Dimension(unit = Dimension.PX)
     private Integer additionalVerticalOffset;
 
+    @Dimension(unit = Dimension.PX)
+    private Integer largeFontVerticalOffsetAdjustment;
+
     private Boolean autoAdjustToWithinGrandparentBounds;
+
+    @BadgeFixedEdge private Integer badgeFixedEdge;
 
     public State() {}
 
@@ -690,11 +723,13 @@ public final class BadgeState {
       verticalOffsetWithoutText = (Integer) in.readSerializable();
       horizontalOffsetWithText = (Integer) in.readSerializable();
       verticalOffsetWithText = (Integer) in.readSerializable();
+      largeFontVerticalOffsetAdjustment = (Integer) in.readSerializable();
       additionalHorizontalOffset = (Integer) in.readSerializable();
       additionalVerticalOffset = (Integer) in.readSerializable();
       isVisible = (Boolean) in.readSerializable();
       numberLocale = (Locale) in.readSerializable();
       autoAdjustToWithinGrandparentBounds = (Boolean) in.readSerializable();
+      badgeFixedEdge = (Integer) in.readSerializable();
     }
 
     public static final Creator<State> CREATOR =
@@ -744,11 +779,13 @@ public final class BadgeState {
       dest.writeSerializable(verticalOffsetWithoutText);
       dest.writeSerializable(horizontalOffsetWithText);
       dest.writeSerializable(verticalOffsetWithText);
+      dest.writeSerializable(largeFontVerticalOffsetAdjustment);
       dest.writeSerializable(additionalHorizontalOffset);
       dest.writeSerializable(additionalVerticalOffset);
       dest.writeSerializable(isVisible);
       dest.writeSerializable(numberLocale);
       dest.writeSerializable(autoAdjustToWithinGrandparentBounds);
+      dest.writeSerializable(badgeFixedEdge);
     }
   }
 }

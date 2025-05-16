@@ -20,6 +20,7 @@ import com.google.android.material.R;
 
 import static java.lang.Math.max;
 
+import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.util.AttributeSet;
 import androidx.annotation.AttrRes;
@@ -49,11 +50,29 @@ import java.lang.annotation.RetentionPolicy;
  *   <li>{@code indicatorInset}: the inset from component's bound to the spinner's outer edge.
  *   <li>{@code indicatorDirectionCircular}: the rotation direction of the spinner or indicator.
  * </ul>
+ *
+ * <p>For more information, see the <a
+ * href="https://github.com/material-components/material-components-android/blob/master/docs/components/ProgressIndicator.md">component
+ * developer guidance</a> and <a
+ * href="https://material.io/components/progress-indicators/overview">design guidelines</a>.
  */
-public final class CircularProgressIndicator
+public class CircularProgressIndicator
     extends BaseProgressIndicator<CircularProgressIndicatorSpec> {
   public static final int DEF_STYLE_RES =
       R.style.Widget_MaterialComponents_CircularProgressIndicator;
+
+  /**
+   * Used in the indeterminate animation type setter for advance animation, which animates an active
+   * segment to iteratively grow by modifying the end position and shrink by modifying the start
+   * position.
+   */
+  public static final int INDETERMINATE_ANIMATION_TYPE_ADVANCE = 0;
+
+  /**
+   * Used in the indeterminate animation type setter for retreat animation, which animates an active
+   * segment to iteratively grow and shrink by modifying the end position.
+   */
+  public static final int INDETERMINATE_ANIMATION_TYPE_RETREAT = 1;
 
   public static final int INDICATOR_DIRECTION_CLOCKWISE = 0;
   public static final int INDICATOR_DIRECTION_COUNTERCLOCKWISE = 1;
@@ -85,8 +104,11 @@ public final class CircularProgressIndicator
   // ******************** Initialization **********************
 
   private void initializeDrawables() {
-    setIndeterminateDrawable(IndeterminateDrawable.createCircularDrawable(getContext(), spec));
-    setProgressDrawable(DeterminateDrawable.createCircularDrawable(getContext(), spec));
+    CircularDrawingDelegate drawingDelegate = new CircularDrawingDelegate(spec);
+    setIndeterminateDrawable(
+        IndeterminateDrawable.createCircularDrawable(getContext(), spec, drawingDelegate));
+    setProgressDrawable(
+        DeterminateDrawable.createCircularDrawable(getContext(), spec, drawingDelegate));
   }
 
   // **************** Getters and setters ****************
@@ -158,8 +180,50 @@ public final class CircularProgressIndicator
     if (spec.indicatorSize != indicatorSize) {
       spec.indicatorSize = indicatorSize;
       spec.validateSpec();
+      requestLayout();
       invalidate();
     }
+  }
+
+  /**
+   * Returns the type of indeterminate animation of this progress indicator.
+   *
+   * @see #setIndeterminateAnimationType(int)
+   * @attr ref
+   *     com.google.android.material.progressindicator.R.styleable#CircularProgressIndicator_indeterminateAnimationType
+   */
+  @IndeterminateAnimationType
+  public int getIndeterminateAnimationType() {
+    return spec.indeterminateAnimationType;
+  }
+
+  /**
+   * Sets the type of indeterminate animation.
+   *
+   * @param indeterminateAnimationType The new type of indeterminate animation.
+   * @see #getIndeterminateAnimationType()
+   * @attr ref
+   *     com.google.android.material.progressindicator.R.styleable#CircularProgressIndicator_indeterminateAnimationType
+   */
+  public void setIndeterminateAnimationType(
+      @IndeterminateAnimationType int indeterminateAnimationType) {
+    if (spec.indeterminateAnimationType == indeterminateAnimationType) {
+      return;
+    }
+    if (visibleToUser() && isIndeterminate()) {
+      throw new IllegalStateException(
+          "Cannot change indeterminate animation type while the progress indicator is show in"
+              + " indeterminate mode.");
+    }
+    spec.indeterminateAnimationType = indeterminateAnimationType;
+    spec.validateSpec();
+    IndeterminateAnimatorDelegate<ObjectAnimator> animatorDelegate =
+        indeterminateAnimationType == INDETERMINATE_ANIMATION_TYPE_RETREAT
+            ? new CircularIndeterminateRetreatAnimatorDelegate(getContext(), spec)
+            : new CircularIndeterminateAdvanceAnimatorDelegate(spec);
+    getIndeterminateDrawable().setAnimatorDelegate(animatorDelegate);
+    registerSwitchIndeterminateModeCallback();
+    invalidate();
   }
 
   /**
@@ -188,6 +252,12 @@ public final class CircularProgressIndicator
   }
 
   // **************** Interface ****************
+
+  /** @hide */
+  @RestrictTo(Scope.LIBRARY_GROUP)
+  @IntDef({INDETERMINATE_ANIMATION_TYPE_ADVANCE, INDETERMINATE_ANIMATION_TYPE_RETREAT})
+  @Retention(RetentionPolicy.SOURCE)
+  public @interface IndeterminateAnimationType {}
 
   /** @hide */
   @RestrictTo(Scope.LIBRARY_GROUP)

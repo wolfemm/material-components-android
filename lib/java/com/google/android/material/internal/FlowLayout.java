@@ -20,18 +20,14 @@ import com.google.android.material.R;
 
 import static androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP;
 
-import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.res.TypedArray;
-import android.os.Build;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RestrictTo;
-import androidx.core.view.MarginLayoutParamsCompat;
-import androidx.core.view.ViewCompat;
 
 /**
  * Horizontally lay out children until the row is filled and then moved to the next line. Call
@@ -60,7 +56,6 @@ public class FlowLayout extends ViewGroup {
     loadFromAttributes(context, attrs);
   }
 
-  @TargetApi(Build.VERSION_CODES.LOLLIPOP)
   public FlowLayout(
       @NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr, int defStyleRes) {
     super(context, attrs, defStyleAttr, defStyleRes);
@@ -72,7 +67,7 @@ public class FlowLayout extends ViewGroup {
     final TypedArray array =
         context.getTheme().obtainStyledAttributes(attrs, R.styleable.FlowLayout, 0, 0);
     lineSpacing = array.getDimensionPixelSize(R.styleable.FlowLayout_lineSpacing, 0);
-    itemSpacing = array.getDimensionPixelSize(R.styleable.FlowLayout_itemSpacing, 0);
+    itemSpacing = array.getDimensionPixelSize(R.styleable.FlowLayout_horizontalItemSpacing, 0);
     array.recycle();
   }
 
@@ -194,15 +189,13 @@ public class FlowLayout extends ViewGroup {
     }
     rowCount = 1;
 
-    boolean isRtl = ViewCompat.getLayoutDirection(this) == ViewCompat.LAYOUT_DIRECTION_RTL;
+    boolean isRtl = getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
     int paddingStart = isRtl ? getPaddingRight() : getPaddingLeft();
     int paddingEnd = isRtl ? getPaddingLeft() : getPaddingRight();
     int childStart = paddingStart;
     int childTop = getPaddingTop();
     int childBottom = childTop;
     int childEnd;
-
-    final int maxChildEnd = right - left - paddingEnd;
 
     for (int i = 0; i < getChildCount(); i++) {
       View child = getChildAt(i);
@@ -217,27 +210,34 @@ public class FlowLayout extends ViewGroup {
       int endMargin = 0;
       if (lp instanceof MarginLayoutParams) {
         MarginLayoutParams marginLp = (MarginLayoutParams) lp;
-        startMargin = MarginLayoutParamsCompat.getMarginStart(marginLp);
-        endMargin = MarginLayoutParamsCompat.getMarginEnd(marginLp);
+        startMargin = marginLp.getMarginStart();
+        endMargin = marginLp.getMarginEnd();
       }
 
       childEnd = childStart + startMargin + child.getMeasuredWidth();
 
+      final int maxChildEnd = right - left - paddingEnd;
       if (!singleLine && (childEnd > maxChildEnd)) {
         childStart = paddingStart;
+        childEnd = childStart + startMargin + child.getMeasuredWidth();
         childTop = childBottom + lineSpacing;
         rowCount++;
       }
       child.setTag(R.id.row_index_key, rowCount - 1);
-
-      childEnd = childStart + startMargin + child.getMeasuredWidth();
       childBottom = childTop + child.getMeasuredHeight();
 
       if (isRtl) {
         child.layout(
-            maxChildEnd - childEnd, childTop, maxChildEnd - childStart - startMargin, childBottom);
+            /* left= */ right - left - childEnd,
+            /* top= */ childTop,
+            /* right= */ right - left - childStart - startMargin,
+            /* bottom= */ childBottom);
       } else {
-        child.layout(childStart + startMargin, childTop, childEnd, childBottom);
+        child.layout(
+            /* left= */ childStart + startMargin,
+            /* top= */ childTop,
+            /* right= */ childEnd,
+            /* bottom= */ childBottom);
       }
 
       childStart += (startMargin + endMargin + child.getMeasuredWidth()) + itemSpacing;

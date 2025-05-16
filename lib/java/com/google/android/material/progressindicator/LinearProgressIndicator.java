@@ -18,18 +18,22 @@ package com.google.android.material.progressindicator;
 
 import com.google.android.material.R;
 
+import static java.lang.Math.min;
+
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
+import android.view.View;
 import androidx.annotation.AttrRes;
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.Px;
 import androidx.annotation.RestrictTo;
 import androidx.annotation.RestrictTo.Scope;
-import androidx.core.view.ViewCompat;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.Objects;
 
 /**
  * This class implements the linear type progress indicators.
@@ -48,12 +52,26 @@ import java.lang.annotation.RetentionPolicy;
  *   <li>{@code indeterminateAnimationType}: the type of indeterminate animation.
  *   <li>{@code indicatorDirectionLinear}: the sweeping direction of the indicator.
  * </ul>
+ *
+ * <p>For more information, see the <a
+ * href="https://github.com/material-components/material-components-android/blob/master/docs/components/ProgressIndicator.md">component
+ * developer guidance</a> and <a
+ * href="https://material.io/components/progress-indicators/overview">design guidelines</a>.
  */
-public final class LinearProgressIndicator
+public class LinearProgressIndicator
     extends BaseProgressIndicator<LinearProgressIndicatorSpec> {
   public static final int DEF_STYLE_RES = R.style.Widget_MaterialComponents_LinearProgressIndicator;
 
+  /**
+   * Used in the indeterminate animation type setter for contiguous animation, which animates the
+   * connecting active segment(s) occupying the full track.
+   */
   public static final int INDETERMINATE_ANIMATION_TYPE_CONTIGUOUS = 0;
+
+  /**
+   * Used in the indeterminate animation type setter for disjoint animation, which animates the
+   * active segment(s) with noticeable gaps.
+   */
   public static final int INDETERMINATE_ANIMATION_TYPE_DISJOINT = 1;
 
   public static final int INDICATOR_DIRECTION_LEFT_TO_RIGHT = 0;
@@ -92,9 +110,9 @@ public final class LinearProgressIndicator
     // In case that layout direction is changed, update the spec.
     spec.drawHorizontallyInverse =
         spec.indicatorDirection == INDICATOR_DIRECTION_RIGHT_TO_LEFT
-            || (ViewCompat.getLayoutDirection(this) == ViewCompat.LAYOUT_DIRECTION_RTL
+            || (getLayoutDirection() == View.LAYOUT_DIRECTION_RTL
                 && spec.indicatorDirection == INDICATOR_DIRECTION_START_TO_END)
-            || (ViewCompat.getLayoutDirection(this) == ViewCompat.LAYOUT_DIRECTION_LTR
+            || (getLayoutDirection() == View.LAYOUT_DIRECTION_LTR
                 && spec.indicatorDirection == INDICATOR_DIRECTION_END_TO_START);
   }
 
@@ -115,8 +133,11 @@ public final class LinearProgressIndicator
   // ******************** Initialization **********************
 
   private void initializeDrawables() {
-    setIndeterminateDrawable(IndeterminateDrawable.createLinearDrawable(getContext(), spec));
-    setProgressDrawable(DeterminateDrawable.createLinearDrawable(getContext(), spec));
+    LinearDrawingDelegate drawingDelegate = new LinearDrawingDelegate(spec);
+    setIndeterminateDrawable(
+        IndeterminateDrawable.createLinearDrawable(getContext(), spec, drawingDelegate));
+    setProgressDrawable(
+        DeterminateDrawable.createLinearDrawable(getContext(), spec, drawingDelegate));
   }
 
   // **************** Getters and setters ****************
@@ -149,12 +170,121 @@ public final class LinearProgressIndicator
   }
 
   /**
+   * Returns the radius of the rounded inner corner for the indicator and track in pixels.
+   *
+   * @see #setTrackInnerCornerRadius(int)
+   * @see #setTrackInnerCornerRadiusFraction(int)
+   * @attr ref
+   *     com.google.android.material.progressindicator.R.styleable#LinearProgressIndicator_trackInnerCornerRadius
+   */
+  @Px
+  public int getTrackInnerCornerRadius() {
+    return spec.trackInnerCornerRadius;
+  }
+
+  /**
+   * Sets the radius of the rounded inner corner for the indicator and track in pixels.
+   *
+   * @param trackInnerCornerRadius The new corner radius in pixels.
+   * @see #setTrackInnerCornerRadiusFraction(float)
+   * @see #getTrackInnerCornerRadius()
+   * @attr ref
+   *     com.google.android.material.progressindicator.R.styleable#LinearProgressIndicator_trackInnerCornerRadius
+   */
+  public void setTrackInnerCornerRadius(@Px int trackInnerCornerRadius) {
+    if (spec.trackInnerCornerRadius != trackInnerCornerRadius) {
+      spec.trackInnerCornerRadius =
+          Math.round(min(trackInnerCornerRadius, spec.trackThickness / 2f));
+      spec.useRelativeTrackInnerCornerRadius = false;
+      spec.hasInnerCornerRadius = true;
+      spec.validateSpec();
+      invalidate();
+    }
+  }
+
+  /**
+   * Sets the radius of the rounded inner corner for the indicator and track in fraction of the
+   * track thickness.
+   *
+   * @param trackInnerCornerRadiusFraction The new corner radius in fraction of the track thickness.
+   * @see #setTrackInnerCornerRadius(int)
+   * @see #getTrackInnerCornerRadius()
+   * @attr ref
+   *     com.google.android.material.progressindicator.R.styleable#LinearProgressIndicator_trackInnerCornerRadius
+   */
+  public void setTrackInnerCornerRadiusFraction(float trackInnerCornerRadiusFraction) {
+    if (spec.trackInnerCornerRadiusFraction != trackInnerCornerRadiusFraction) {
+      spec.trackInnerCornerRadiusFraction = min(trackInnerCornerRadiusFraction, 0.5f);
+      spec.useRelativeTrackInnerCornerRadius = true;
+      spec.hasInnerCornerRadius = true;
+      spec.validateSpec();
+      invalidate();
+    }
+  }
+
+  /**
+   * Returns the size of the stop indicator at the end of the track in pixels.
+   *
+   * @see #setTrackStopIndicatorSize(int)
+   * @attr ref
+   *     com.google.android.material.progressindicator.R.styleable#LinearProgressIndicator_trackStopIndicatorSize
+   */
+  @Px
+  public int getTrackStopIndicatorSize() {
+    return spec.trackStopIndicatorSize;
+  }
+
+  /**
+   * Sets the size of the stop indicator at the end of the track in pixels.
+   *
+   * @param trackStopIndicatorSize The new stop indicator size in pixels.
+   * @see #getTrackStopIndicatorSize()
+   * @attr ref
+   *     com.google.android.material.progressindicator.R.styleable#LinearProgressIndicator_trackStopIndicatorSize
+   */
+  public void setTrackStopIndicatorSize(@Px int trackStopIndicatorSize) {
+    if (spec.trackStopIndicatorSize != trackStopIndicatorSize) {
+      spec.trackStopIndicatorSize = min(trackStopIndicatorSize, spec.trackThickness);
+      spec.validateSpec();
+      invalidate();
+    }
+  }
+
+  /**
+   * Returns the padding of the stop indicator at the end of the track in pixels.
+   *
+   * @see #setTrackStopIndicatorPadding(int)
+   * @attr ref
+   *     com.google.android.material.progressindicator.R.styleable#LinearProgressIndicator_trackStopIndicatorPadding
+   */
+  @Nullable
+  public Integer getTrackStopIndicatorPadding() {
+    return spec.trackStopIndicatorPadding;
+  }
+
+  /**
+   * Sets the padding of the stop indicator at the end of the track in pixels.
+   *
+   * @param trackStopIndicatorPadding The new stop indicator padding in pixels.
+   * @see #getTrackStopIndicatorPadding()
+   * @attr ref
+   *     com.google.android.material.progressindicator.R.styleable#LinearProgressIndicator_trackStopIndicatorPadding
+   */
+  public void setTrackStopIndicatorPadding(@Nullable Integer trackStopIndicatorPadding) {
+    if (!Objects.equals(spec.trackStopIndicatorPadding, trackStopIndicatorPadding)) {
+      spec.trackStopIndicatorPadding = trackStopIndicatorPadding;
+      invalidate();
+    }
+  }
+
+  /**
    * Returns the type of indeterminate animation of this progress indicator.
    *
    * @see #setIndeterminateAnimationType(int)
    * @attr ref
    *     com.google.android.material.progressindicator.R.styleable#LinearProgressIndicator_indeterminateAnimationType
    */
+  @IndeterminateAnimationType
   public int getIndeterminateAnimationType() {
     return spec.indeterminateAnimationType;
   }
@@ -186,6 +316,7 @@ public final class LinearProgressIndicator
       getIndeterminateDrawable()
           .setAnimatorDelegate(new LinearIndeterminateDisjointAnimatorDelegate(getContext(), spec));
     }
+    registerSwitchIndeterminateModeCallback();
     invalidate();
   }
 
@@ -213,9 +344,9 @@ public final class LinearProgressIndicator
     spec.indicatorDirection = indicatorDirection;
     spec.drawHorizontallyInverse =
         indicatorDirection == INDICATOR_DIRECTION_RIGHT_TO_LEFT
-            || (ViewCompat.getLayoutDirection(this) == ViewCompat.LAYOUT_DIRECTION_RTL
+            || (getLayoutDirection() == View.LAYOUT_DIRECTION_RTL
                 && spec.indicatorDirection == INDICATOR_DIRECTION_START_TO_END)
-            || (ViewCompat.getLayoutDirection(this) == ViewCompat.LAYOUT_DIRECTION_LTR
+            || (getLayoutDirection() == View.LAYOUT_DIRECTION_LTR
                 && indicatorDirection == INDICATOR_DIRECTION_END_TO_START);
     invalidate();
   }
@@ -232,7 +363,7 @@ public final class LinearProgressIndicator
    */
   @Override
   public void setProgressCompat(int progress, boolean animated) {
-    // Doesn't support to switching into determinate mode while disjoint animation is used.
+    // Doesn't support to switching into determinate mode while contiguous animation is used.
     if (spec != null
         && spec.indeterminateAnimationType == INDETERMINATE_ANIMATION_TYPE_CONTIGUOUS
         && isIndeterminate()) {

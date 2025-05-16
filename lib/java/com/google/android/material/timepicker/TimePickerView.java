@@ -50,8 +50,12 @@ import java.util.Locale;
 /**
  * The main view to display a time picker.
  *
- * <p> A time picker prompts the user to choose the time of day.
+ * <p>A time picker prompts the user to choose the time of day.
  *
+ * <p>For more information, see the <a
+ * href="https://github.com/material-components/material-components-android/blob/master/docs/components/TimePicker.md">component
+ * developer guidance</a> and <a href="https://material.io/components/time-pickers/overview">design
+ * guidelines</a>.
  */
 class TimePickerView extends ConstraintLayout implements TimePickerControls {
 
@@ -220,11 +224,9 @@ class TimePickerView extends ConstraintLayout implements TimePickerControls {
 
   private void updateSelection(Chip chip, boolean isSelected) {
     chip.setChecked(isSelected);
-    ViewCompat.setAccessibilityLiveRegion(
-        chip,
-        isSelected
-            ? ViewCompat.ACCESSIBILITY_LIVE_REGION_ASSERTIVE
-            : ViewCompat.ACCESSIBILITY_LIVE_REGION_NONE);
+    chip.setAccessibilityLiveRegion(isSelected
+        ? View.ACCESSIBILITY_LIVE_REGION_ASSERTIVE
+        : View.ACCESSIBILITY_LIVE_REGION_NONE);
   }
 
   public void addOnRotateListener(OnRotateListener onRotateListener) {

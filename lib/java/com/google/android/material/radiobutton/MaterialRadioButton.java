@@ -39,6 +39,11 @@ import com.google.android.material.resources.MaterialResources;
  * changes, it behaves identically to {@link AppCompatRadioButton}. Your theme's {@code
  * ?attr/colorControlActivated}, {@code ?attr/colorSurface}, and {@code ?attr/colorOnSurface} must
  * be set.
+ *
+ * <p>For more information, see the <a
+ * href="https://github.com/material-components/material-components-android/blob/master/docs/components/RadioButton.md">component
+ * developer guidance</a> and <a href="https://material.io/components/radio-button/overview">design
+ * guidelines</a>.
  */
 public class MaterialRadioButton extends AppCompatRadioButton {
 
@@ -59,7 +64,7 @@ public class MaterialRadioButton extends AppCompatRadioButton {
   }
 
   public MaterialRadioButton(@NonNull Context context, @Nullable AttributeSet attrs) {
-    this(context, attrs, R.attr.radioButtonStyle);
+    this(context, attrs, androidx.appcompat.R.attr.radioButtonStyle);
   }
 
   public MaterialRadioButton(
@@ -117,7 +122,8 @@ public class MaterialRadioButton extends AppCompatRadioButton {
 
   private ColorStateList getMaterialThemeColorsTintList() {
     if (materialThemeColorsTintList == null) {
-      int colorControlActivated = MaterialColors.getColor(this, R.attr.colorControlActivated);
+      int colorControlActivated =
+          MaterialColors.getColor(this, androidx.appcompat.R.attr.colorControlActivated);
       int colorOnSurface = MaterialColors.getColor(this, R.attr.colorOnSurface);
       int colorSurface = MaterialColors.getColor(this, R.attr.colorSurface);
 

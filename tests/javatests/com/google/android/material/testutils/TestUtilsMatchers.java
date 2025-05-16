@@ -330,7 +330,7 @@ public class TestUtilsMatchers {
         // Since the FAB background is round, and may contain the shadow, we'll look at
         // just the center half rect of the content area
         final Rect area = new Rect();
-        fab.getContentRect(area);
+        fab.getMeasuredContentRect(area);
 
         final int rectHeightQuarter = area.height() / 4;
         final int rectWidthQuarter = area.width() / 4;
@@ -404,7 +404,7 @@ public class TestUtilsMatchers {
 
         final FloatingActionButton fab = (FloatingActionButton) view;
         final Rect area = new Rect();
-        fab.getContentRect(area);
+        fab.getMeasuredContentRect(area);
 
         if (area.height() != size) {
           failedCheckDescription =
@@ -439,7 +439,7 @@ public class TestUtilsMatchers {
         final ViewGroup parent = (ViewGroup) view.getParent();
 
         final Rect area = new Rect();
-        fab.getContentRect(area);
+        fab.getMeasuredContentRect(area);
 
         final int absGravity =
             GravityCompat.getAbsoluteGravity(gravity, ViewCompat.getLayoutDirection(view));
@@ -560,6 +560,21 @@ public class TestUtilsMatchers {
       @Override
       public boolean matchesSafely(final View view) {
         return typeface.equals(((TextView) view).getTypeface());
+      }
+    };
+  }
+
+  /** Returns a matcher that matches TextViews with the specified typeface style. */
+  public static Matcher<View> withTypefaceStyle(final int typefaceStyle) {
+    return new TypeSafeMatcher<View>(TextView.class) {
+      @Override
+      public void describeTo(final Description description) {
+        description.appendText("view with typeface style: " + typefaceStyle);
+      }
+
+      @Override
+      public boolean matchesSafely(final View view) {
+        return typefaceStyle == ((TextView) view).getTypeface().getStyle();
       }
     };
   }

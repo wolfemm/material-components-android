@@ -16,10 +16,16 @@ can contain critical information, require decisions, or involve multiple tasks.
 
 **Contents**
 
+*   [Design and API Documentation](#design-and-api-documentation)
 *   [Using dialogs](#using-dialogs)
 *   [Basic dialog](#basic-dialog)
 *   [Full-screen dialog](#full-screen-dialog)
 *   [Theming](#theming-dialogs)
+
+## Design and API Documentation
+
+*   [Google Material3 Spec](https://material.io/components/date-pickers/overview)
+*   [API reference](https://developer.android.com/reference/com/google/android/material/dialog/package-summary)
 
 ## Using dialogs
 
@@ -120,8 +126,8 @@ particular type), a background scrim, and, optionally, title and buttons.
 
 Element                             | **Attribute**                                            | **Related methods**                                    | **Default value**
 ----------------------------------- | -------------------------------------------------------- | ------------------------------------------------------ | -----------------
-**Color**                           | `app:backgroundTint`                                     | N/A                                                    | `?attr/colorSurface`
-**Shape**                           | `app:shapeAppearance`<br/>`app:shapeAppearanceOverlay`   | N/A                                                    | `?attr/shapeAppearanceMediumComponent` with a corner size of `28dp`
+**Color**                           | `app:backgroundTint`                                     | N/A                                                    | `?attr/colorSurfaceContainerHigh`
+**Shape**                           | `app:shapeAppearance`<br/>`app:shapeAppearanceOverlay`   | N/A                                                    | `?attr/shapeAppearanceCornerExtraLarge`
 **Background inset start and end**  | `app:backgroundInsetStart`<br/>`app:backgroundInsetEnd`  | `setBackgroundInsetStart`<br/>`setBackgroundInsetEnd`  | `24dp`
 **Background inset top and bottom** | `app:backgroundInsetTop`<br/>`app:backgroundInsetBottom` | `setBackgroundInsetTop`<br/>`setBackgroundInsetBottom` | `80dp`
 
@@ -182,10 +188,10 @@ Element        | **Attribute**                 | **Related methods** | **Default
 
 #### Theme overlays
 
-Element                    | **Theme overlay**
--------------------------- | -----------------
-**Default theme overlay**  | `ThemeOverlay.Material3.MaterialAlertDialog`
-**Centered theme overlay** | `ThemeOverlay.Material3.MaterialAlertDialog.Centered`
+Element                    | **Theme overlay**                                      | Description
+-------------------------- | ------------------------------------------------------ | -------------
+**Default theme overlay**  | `ThemeOverlay.Material3.MaterialAlertDialog`           | Dialogs have start-aligned icons and titles with end-aligned buttons
+**Centered theme overlay** | `ThemeOverlay.Material3.MaterialAlertDialog.Centered`  | Dialogs have center-aligned icons and titles with end-aligned buttons
 
 Default theme overlay attribute: `?attr/materialAlertDialogTheme`
 

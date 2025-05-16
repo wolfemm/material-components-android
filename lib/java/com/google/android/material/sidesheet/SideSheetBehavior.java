@@ -27,6 +27,7 @@ import android.animation.ValueAnimator.AnimatorUpdateListener;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.TypedArray;
+import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -41,19 +42,16 @@ import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.ViewGroup.MarginLayoutParams;
 import android.view.ViewParent;
-import android.window.BackEvent;
+import androidx.activity.BackEventCompat;
 import androidx.annotation.GravityInt;
 import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.annotation.RestrictTo;
 import androidx.annotation.VisibleForTesting;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams;
 import androidx.core.math.MathUtils;
-import androidx.core.os.BuildCompat;
-import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat;
@@ -72,6 +70,11 @@ import java.util.Set;
 /**
  * An interaction behavior plugin for a child view of {@link CoordinatorLayout} to make it work as a
  * side sheet.
+ *
+ * <p>For more information, see the <a
+ * href="https://github.com/material-components/material-components-android/blob/master/docs/components/SideSheet.md">component
+ * developer guidance</a> and <a href="https://material.io/components/side-sheets/overview">design
+ * guidelines</a>.
  */
 public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavior<V>
     implements Sheet<SideSheetCallback> {
@@ -165,7 +168,7 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
 
   private void setSheetEdge(@NonNull V view, int layoutDirection) {
     LayoutParams params = (LayoutParams) view.getLayoutParams();
-    int sheetGravity = GravityCompat.getAbsoluteGravity(params.gravity, layoutDirection);
+    int sheetGravity = Gravity.getAbsoluteGravity(params.gravity, layoutDirection);
 
     setSheetEdge(sheetGravity == Gravity.LEFT ? EDGE_LEFT : EDGE_RIGHT);
   }
@@ -347,7 +350,7 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
   @Override
   public boolean onLayoutChild(
       @NonNull CoordinatorLayout parent, @NonNull final V child, int layoutDirection) {
-    if (ViewCompat.getFitsSystemWindows(parent) && !ViewCompat.getFitsSystemWindows(child)) {
+    if (parent.getFitsSystemWindows() && !child.getFitsSystemWindows()) {
       child.setFitsSystemWindows(true);
     }
 
@@ -360,19 +363,17 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
       // Only set MaterialShapeDrawable as background if shapeTheming is enabled, otherwise will
       // default to android:background declared in styles or layout.
       if (materialShapeDrawable != null) {
-        ViewCompat.setBackground(child, materialShapeDrawable);
+        child.setBackground(materialShapeDrawable);
         // Use elevation attr if set on side sheet; otherwise, use elevation of child view.
-        materialShapeDrawable.setElevation(
-            elevation == -1 ? ViewCompat.getElevation(child) : elevation);
+        materialShapeDrawable.setElevation(elevation == -1 ? child.getElevation() : elevation);
       } else if (backgroundTint != null) {
         ViewCompat.setBackgroundTintList(child, backgroundTint);
       }
       updateSheetVisibility(child);
 
       updateAccessibilityActions();
-      if (ViewCompat.getImportantForAccessibility(child)
-          == ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_AUTO) {
-        ViewCompat.setImportantForAccessibility(child, ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_YES);
+      if (child.getImportantForAccessibility() == View.IMPORTANT_FOR_ACCESSIBILITY_AUTO) {
+        child.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
       }
       ensureAccessibilityPaneTitleIsSet(child);
     }
@@ -662,7 +663,7 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
 
   private boolean isLayingOut(@NonNull V child) {
     ViewParent parent = child.getParent();
-    return parent != null && parent.isLayoutRequested() && ViewCompat.isAttachedToWindow(child);
+    return parent != null && parent.isLayoutRequested() && child.isAttachedToWindow();
   }
 
   /**
@@ -911,7 +912,7 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
     // Request layout to find the view and trigger a layout pass.
     if (viewRef != null) {
       View view = viewRef.get();
-      if (coplanarSiblingViewId != View.NO_ID && ViewCompat.isLaidOut(view)) {
+      if (coplanarSiblingViewId != View.NO_ID && view.isLaidOut()) {
         view.requestLayout();
       }
     }
@@ -933,7 +934,7 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
       // Request layout to make the new view take effect.
       if (viewRef != null) {
         View view = viewRef.get();
-        if (ViewCompat.isLaidOut(view)) {
+        if (view.isLaidOut()) {
           view.requestLayout();
         }
       }
@@ -975,18 +976,16 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
     return lastStableState;
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   @Override
-  public void startBackProgress(@NonNull BackEvent backEvent) {
+  public void startBackProgress(@NonNull BackEventCompat backEvent) {
     if (sideContainerBackHelper == null) {
       return;
     }
     sideContainerBackHelper.startBackProgress(backEvent);
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   @Override
-  public void updateBackProgress(@NonNull BackEvent backEvent) {
+  public void updateBackProgress(@NonNull BackEventCompat backEvent) {
     if (sideContainerBackHelper == null) {
       return;
     }
@@ -1023,8 +1022,8 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
     if (sideContainerBackHelper == null) {
       return;
     }
-    BackEvent backEvent = sideContainerBackHelper.onHandleBackInvoked();
-    if (backEvent == null || !BuildCompat.isAtLeastU()) {
+    BackEventCompat backEvent = sideContainerBackHelper.onHandleBackInvoked();
+    if (backEvent == null || VERSION.SDK_INT < VERSION_CODES.UPSIDE_DOWN_CAKE) {
       setState(STATE_HIDDEN);
       return;
     }
@@ -1068,7 +1067,6 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
     };
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
   @Override
   public void cancelBackProgress() {
     if (sideContainerBackHelper == null) {
@@ -1104,7 +1102,7 @@ public class SideSheetBehavior<V extends View> extends CoordinatorLayout.Behavio
       }
       this.targetState = targetState;
       if (!isContinueSettlingRunnablePosted) {
-        ViewCompat.postOnAnimation(viewRef.get(), continueSettlingRunnable);
+        viewRef.get().postOnAnimation(continueSettlingRunnable);
         isContinueSettlingRunnablePosted = true;
       }
     }

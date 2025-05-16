@@ -24,12 +24,12 @@ import android.window.BackEvent;
 import android.window.OnBackAnimationCallback;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
+import androidx.activity.BackEventCompat;
 import androidx.annotation.DoNotInline;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.annotation.RestrictTo;
-import androidx.core.os.BuildCompat;
 
 /**
  * Utility class for views that support back handling via {@link MaterialBackHandler} which helps
@@ -97,7 +97,7 @@ public final class MaterialBackOrchestrator {
 
   @Nullable
   private static BackCallbackDelegate createBackCallbackDelegate() {
-    if (BuildCompat.isAtLeastU()) {
+    if (VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
       return new Api34BackCallbackDelegate();
     } else if (VERSION.SDK_INT >= VERSION_CODES.TIRAMISU) {
       return new Api33BackCallbackDelegate();
@@ -123,12 +123,18 @@ public final class MaterialBackOrchestrator {
 
         @Override
         public void onBackStarted(@NonNull BackEvent backEvent) {
-          backHandler.startBackProgress(backEvent);
+          if (!isListeningForBackCallbacks()) {
+            return;
+          }
+          backHandler.startBackProgress(new BackEventCompat(backEvent));
         }
 
         @Override
         public void onBackProgressed(@NonNull BackEvent backEvent) {
-          backHandler.updateBackProgress(backEvent);
+          if (!isListeningForBackCallbacks()) {
+            return;
+          }
+          backHandler.updateBackProgress(new BackEventCompat(backEvent));
         }
 
         @Override
@@ -138,6 +144,9 @@ public final class MaterialBackOrchestrator {
 
         @Override
         public void onBackCancelled() {
+          if (!isListeningForBackCallbacks()) {
+            return;
+          }
           backHandler.cancelBackProgress();
         }
       };
@@ -148,6 +157,10 @@ public final class MaterialBackOrchestrator {
   private static class Api33BackCallbackDelegate implements BackCallbackDelegate {
 
     @Nullable private OnBackInvokedCallback onBackInvokedCallback;
+
+    boolean isListeningForBackCallbacks() {
+      return onBackInvokedCallback != null;
+    }
 
     @DoNotInline
     @Override
@@ -173,6 +186,9 @@ public final class MaterialBackOrchestrator {
     @DoNotInline
     @Override
     public void stopListeningForBackCallbacks(@NonNull View view) {
+      if (onBackInvokedCallback == null) {
+        return;
+      }
       OnBackInvokedDispatcher onBackInvokedDispatcher = view.findOnBackInvokedDispatcher();
       if (onBackInvokedDispatcher == null) {
         return;

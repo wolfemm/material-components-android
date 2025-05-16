@@ -20,6 +20,7 @@ import com.google.android.material.R;
 
 import static com.google.android.material.theme.overlay.MaterialThemeOverlay.wrap;
 
+import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.TypedArray;
@@ -28,13 +29,12 @@ import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.RippleDrawable;
-import android.os.Build.VERSION;
-import android.os.Build.VERSION_CODES;
 import androidx.appcompat.widget.AppCompatAutoCompleteTextView;
 import androidx.appcompat.widget.ListPopupWindow;
 import android.text.InputType;
 import android.util.AttributeSet;
 import android.view.View;
+import android.view.View.MeasureSpec;
 import android.view.ViewGroup;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
@@ -51,13 +51,12 @@ import androidx.annotation.ColorInt;
 import androidx.annotation.LayoutRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.graphics.drawable.DrawableCompat;
-import androidx.core.view.ViewCompat;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.internal.ManufacturerUtils;
 import com.google.android.material.internal.ThemeEnforcement;
 import com.google.android.material.resources.MaterialResources;
 import com.google.android.material.shape.MaterialShapeDrawable;
+import java.util.List;
 
 /**
  * A special sub-class of {@link android.widget.AutoCompleteTextView} that is auto-inflated so that
@@ -73,6 +72,7 @@ import com.google.android.material.shape.MaterialShapeDrawable;
 public class MaterialAutoCompleteTextView extends AppCompatAutoCompleteTextView {
 
   private static final int MAX_ITEMS_MEASURED = 15;
+  private static final String SWITCH_ACCESS_ACTIVITY_NAME = "SwitchAccess";
 
   @NonNull private final ListPopupWindow modalListPopup;
   @Nullable private final AccessibilityManager accessibilityManager;
@@ -89,7 +89,7 @@ public class MaterialAutoCompleteTextView extends AppCompatAutoCompleteTextView 
 
   public MaterialAutoCompleteTextView(
       @NonNull Context context, @Nullable AttributeSet attributeSet) {
-    this(context, attributeSet, R.attr.autoCompleteTextViewStyle);
+    this(context, attributeSet, androidx.appcompat.R.attr.autoCompleteTextViewStyle);
   }
 
   public MaterialAutoCompleteTextView(
@@ -104,7 +104,7 @@ public class MaterialAutoCompleteTextView extends AppCompatAutoCompleteTextView 
             attributeSet,
             R.styleable.MaterialAutoCompleteTextView,
             defStyleAttr,
-            R.style.Widget_AppCompat_AutoCompleteTextView);
+            androidx.appcompat.R.style.Widget_AppCompat_AutoCompleteTextView);
 
     // Due to a framework bug, setting android:inputType="none" on xml has no effect. Therefore,
     // we check it here in case the autoCompleteTextView should be non-editable.
@@ -158,7 +158,7 @@ public class MaterialAutoCompleteTextView extends AppCompatAutoCompleteTextView 
             Object selectedItem =
                 position < 0 ? modalListPopup.getSelectedItem() : getAdapter().getItem(position);
 
-            updateText(selectedItem);
+            setText(convertSelectionToString(selectedItem), false);
 
             OnItemClickListener userOnItemClickListener = getOnItemClickListener();
             if (userOnItemClickListener != null) {
@@ -185,7 +185,7 @@ public class MaterialAutoCompleteTextView extends AppCompatAutoCompleteTextView 
 
   @Override
   public void showDropDown() {
-    if (isTouchExplorationEnabled()) {
+    if (isPopupRequired()) {
       modalListPopup.show();
     } else {
       super.showDropDown();
@@ -194,7 +194,7 @@ public class MaterialAutoCompleteTextView extends AppCompatAutoCompleteTextView 
 
   @Override
   public void dismissDropDown() {
-    if (isTouchExplorationEnabled()) {
+    if (isPopupRequired()) {
       modalListPopup.dismiss();
     } else {
       super.dismissDropDown();
@@ -203,16 +203,38 @@ public class MaterialAutoCompleteTextView extends AppCompatAutoCompleteTextView 
 
   @Override
   public void onWindowFocusChanged(boolean hasWindowFocus) {
-    if (isTouchExplorationEnabled()) {
-      // Do not dismissDropDown if touch exploration is enabled, in case the window lost focus
-      // in favor of the modalListPopup.
+    if (isPopupRequired()) {
+      // Do not dismissDropDown if touch exploration or switch access is enabled, in case the window
+      // lost focus in favor of the modalListPopup.
       return;
     }
     super.onWindowFocusChanged(hasWindowFocus);
   }
 
+  private boolean isPopupRequired() {
+    return isTouchExplorationEnabled() || isSwitchAccessEnabled();
+  }
+
   private boolean isTouchExplorationEnabled() {
     return accessibilityManager != null && accessibilityManager.isTouchExplorationEnabled();
+  }
+
+  private boolean isSwitchAccessEnabled() {
+    if (accessibilityManager == null || !accessibilityManager.isEnabled()) {
+      return false;
+    }
+    List<AccessibilityServiceInfo> accessibilityServiceInfos =
+        accessibilityManager.getEnabledAccessibilityServiceList(
+            AccessibilityServiceInfo.FEEDBACK_GENERIC);
+    if (accessibilityServiceInfos != null) {
+      for (AccessibilityServiceInfo info : accessibilityServiceInfos) {
+        if (info.getSettingsActivityName() != null
+            && info.getSettingsActivityName().contains(SWITCH_ACCESS_ACTIVITY_NAME)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   @Override
@@ -497,18 +519,6 @@ public class MaterialAutoCompleteTextView extends AppCompatAutoCompleteTextView 
     return null;
   }
 
-  @SuppressWarnings("unchecked")
-  private <T extends ListAdapter & Filterable> void updateText(Object selectedItem) {
-    if (VERSION.SDK_INT >= 17) {
-      setText(convertSelectionToString(selectedItem), false);
-    } else {
-      ListAdapter adapter = getAdapter();
-      setAdapter(null);
-      setText(convertSelectionToString(selectedItem));
-      setAdapter((T) adapter);
-    }
-  }
-
   /** ArrayAdapter for the {@link MaterialAutoCompleteTextView}. */
   private class MaterialArrayAdapter<T> extends ArrayAdapter<String> {
 
@@ -533,7 +543,7 @@ public class MaterialAutoCompleteTextView extends AppCompatAutoCompleteTextView 
       if (view instanceof TextView) {
         TextView textView = (TextView) view;
         boolean isSelectedItem = getText().toString().contentEquals(textView.getText());
-        ViewCompat.setBackground(textView, isSelectedItem ? getSelectedItemDrawable() : null);
+        textView.setBackground(isSelectedItem ? getSelectedItemDrawable() : null);
       }
 
       return view;
@@ -541,7 +551,7 @@ public class MaterialAutoCompleteTextView extends AppCompatAutoCompleteTextView 
 
     @Nullable
     private Drawable getSelectedItemDrawable() {
-      if (!hasSelectedColor() || VERSION.SDK_INT < VERSION_CODES.LOLLIPOP) {
+      if (!hasSelectedColor()) {
         return null;
       }
 
@@ -556,7 +566,7 @@ public class MaterialAutoCompleteTextView extends AppCompatAutoCompleteTextView 
         // pressed states, but not to other states like focused and hovered. To solve that, we
         // create the selectedItemRippleOverlaidColor that will work in those missing states, making
         // the selected list item stateful as expected.
-        DrawableCompat.setTintList(colorDrawable, selectedItemRippleOverlaidColor);
+        colorDrawable.setTintList(selectedItemRippleOverlaidColor);
         return new RippleDrawable(pressedRippleColor, colorDrawable, null);
       } else {
         return colorDrawable;
@@ -565,9 +575,7 @@ public class MaterialAutoCompleteTextView extends AppCompatAutoCompleteTextView 
 
     @Nullable
     private ColorStateList createItemSelectedColorStateList() {
-      if (!hasSelectedColor()
-          || !hasSelectedRippleColor()
-          || VERSION.SDK_INT < VERSION_CODES.LOLLIPOP) {
+      if (!hasSelectedColor() || !hasSelectedRippleColor()) {
         return null;
       }
       int[] stateHovered = new int[] {android.R.attr.state_hovered, -android.R.attr.state_pressed};

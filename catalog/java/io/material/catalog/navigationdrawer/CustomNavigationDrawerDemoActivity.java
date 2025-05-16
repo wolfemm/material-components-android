@@ -20,6 +20,7 @@ import io.material.catalog.R;
 
 import android.animation.Animator.AnimatorListener;
 import android.animation.ValueAnimator.AnimatorUpdateListener;
+import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import androidx.appcompat.app.ActionBarDrawerToggle;
@@ -30,11 +31,11 @@ import android.view.ViewGroup;
 import android.window.BackEvent;
 import android.window.OnBackAnimationCallback;
 import android.window.OnBackInvokedDispatcher;
+import androidx.activity.BackEventCompat;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
-import androidx.core.os.BuildCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.drawerlayout.widget.DrawerLayout.LayoutParams;
 import androidx.drawerlayout.widget.DrawerLayout.SimpleDrawerListener;
@@ -85,40 +86,12 @@ public class CustomNavigationDrawerDemoActivity extends DemoActivity {
         new SimpleDrawerListener() {
           @Override
           public void onDrawerOpened(@NonNull View drawerView) {
-            currentDrawerView = drawerView;
-            sideContainerBackHelper = new MaterialSideContainerBackHelper(drawerView);
-
-            if (BuildCompat.isAtLeastU()) {
-              if (drawerOnBackAnimationCallback == null) {
-                drawerOnBackAnimationCallback = createOnBackAnimationCallback();
-              }
-              drawerLayout.post(
-                  () ->
-                      getOnBackInvokedDispatcher()
-                          .registerOnBackInvokedCallback(
-                              OnBackInvokedDispatcher.PRIORITY_OVERLAY,
-                              drawerOnBackAnimationCallback));
-            } else {
-              getOnBackPressedDispatcher()
-                  .addCallback(
-                      CustomNavigationDrawerDemoActivity.this, drawerOnBackPressedCallback);
-            }
+            registerBackCallback(drawerView);
           }
 
           @Override
           public void onDrawerClosed(@NonNull View drawerView) {
-            currentDrawerView = null;
-            sideContainerBackHelper = null;
-
-            if (BuildCompat.isAtLeastU()) {
-              if (drawerOnBackAnimationCallback != null) {
-                getOnBackInvokedDispatcher()
-                    .unregisterOnBackInvokedCallback(drawerOnBackAnimationCallback);
-                drawerOnBackAnimationCallback = null;
-              }
-            } else {
-              drawerOnBackPressedCallback.remove();
-            }
+            unregisterBackCallback();
           }
         });
 
@@ -126,7 +99,49 @@ public class CustomNavigationDrawerDemoActivity extends DemoActivity {
     view.findViewById(R.id.show_end_drawer_gravity)
         .setOnClickListener(v -> drawerLayout.openDrawer(endDrawer));
 
+    drawerLayout.post(
+        () -> {
+          View startDrawer = view.findViewById(R.id.custom_drawer_start);
+          if (drawerLayout.isDrawerOpen(startDrawer)) {
+            registerBackCallback(startDrawer);
+          } else if (drawerLayout.isDrawerOpen(endDrawer)) {
+            registerBackCallback(endDrawer);
+          }
+        });
+
     return view;
+  }
+
+  private void registerBackCallback(@NonNull View drawerView) {
+    currentDrawerView = drawerView;
+    sideContainerBackHelper = new MaterialSideContainerBackHelper(drawerView);
+
+    if (VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
+      if (drawerOnBackAnimationCallback == null) {
+        drawerOnBackAnimationCallback = createOnBackAnimationCallback();
+      }
+      drawerLayout.post(
+          () ->
+              getOnBackInvokedDispatcher()
+                  .registerOnBackInvokedCallback(
+                      OnBackInvokedDispatcher.PRIORITY_OVERLAY, drawerOnBackAnimationCallback));
+    } else {
+      getOnBackPressedDispatcher().addCallback(this, drawerOnBackPressedCallback);
+    }
+  }
+
+  private void unregisterBackCallback() {
+    currentDrawerView = null;
+    sideContainerBackHelper = null;
+
+    if (VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
+      if (drawerOnBackAnimationCallback != null) {
+        getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(drawerOnBackAnimationCallback);
+        drawerOnBackAnimationCallback = null;
+      }
+    } else {
+      drawerOnBackPressedCallback.remove();
+    }
   }
 
   @Override
@@ -140,19 +155,20 @@ public class CustomNavigationDrawerDemoActivity extends DemoActivity {
 
       @Override
       public void onBackStarted(@NonNull BackEvent backEvent) {
-        sideContainerBackHelper.startBackProgress(backEvent);
+        sideContainerBackHelper.startBackProgress(new BackEventCompat(backEvent));
       }
 
       @Override
       public void onBackProgressed(@NonNull BackEvent backEvent) {
         DrawerLayout.LayoutParams drawerLayoutParams =
             (LayoutParams) currentDrawerView.getLayoutParams();
-        sideContainerBackHelper.updateBackProgress(backEvent, drawerLayoutParams.gravity);
+        sideContainerBackHelper.updateBackProgress(
+            new BackEventCompat(backEvent), drawerLayoutParams.gravity);
       }
 
       @Override
       public void onBackInvoked() {
-        BackEvent backEvent = sideContainerBackHelper.onHandleBackInvoked();
+        BackEventCompat backEvent = sideContainerBackHelper.onHandleBackInvoked();
         if (backEvent == null) {
           drawerLayout.closeDrawers();
           return;

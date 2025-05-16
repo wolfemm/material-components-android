@@ -30,8 +30,9 @@ import androidx.annotation.LayoutRes;
 import androidx.annotation.Nullable;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.button.MaterialButtonToggleGroup;
-import com.google.android.material.button.MaterialButtonToggleGroup.OnButtonCheckedListener;
 import com.google.android.material.materialswitch.MaterialSwitch;
+import com.google.android.material.shape.RelativeCornerSize;
+import com.google.android.material.slider.Slider;
 import com.google.android.material.snackbar.Snackbar;
 import io.material.catalog.feature.DemoFragment;
 import io.material.catalog.feature.DemoUtils;
@@ -53,7 +54,8 @@ public class ButtonToggleGroupDemoFragment extends DemoFragment {
     View view =
         layoutInflater.inflate(getButtonToggleGroupContent(), viewGroup, /* attachToRoot= */ false);
     MaterialSwitch requireSelectionToggle = view.findViewById(R.id.switch_toggle);
-    defaultInset = getResources().getDimensionPixelSize(R.dimen.mtrl_btn_inset);
+    defaultInset = getResources().getDimensionPixelSize(com.google.android.material.R.dimen.mtrl_btn_inset);
+    List<MaterialButton> buttons = DemoUtils.findViewsWithType(view, MaterialButton.class);
     List<MaterialButtonToggleGroup> toggleGroups =
         DemoUtils.findViewsWithType(view, MaterialButtonToggleGroup.class);
     requireSelectionToggle.setOnCheckedChangeListener(
@@ -92,15 +94,35 @@ public class ButtonToggleGroupDemoFragment extends DemoFragment {
 
     for (MaterialButtonToggleGroup toggleGroup : toggleGroups) {
       toggleGroup.addOnButtonCheckedListener(
-          new OnButtonCheckedListener() {
-            @Override
-            public void onButtonChecked(
-                MaterialButtonToggleGroup group, int checkedId, boolean isChecked) {
-              String message = "button" + (isChecked ? " checked" : " unchecked");
-              Snackbar.make(view, message, Snackbar.LENGTH_SHORT).show();
-            }
+          (group, checkedId, isChecked) -> {
+            String message = "button" + (isChecked ? " checked" : " unchecked");
+            Snackbar.make(view, message, Snackbar.LENGTH_SHORT).show();
           });
     }
+
+    Slider innerCornerSizeSlider = view.findViewById(R.id.innerCornerSizeSlider);
+    innerCornerSizeSlider.addOnChangeListener(
+        (slider, value, fromUser) -> {
+          for (MaterialButtonToggleGroup toggleGroup : toggleGroups) {
+            toggleGroup.setInnerCornerSize(new RelativeCornerSize(value / 100f));
+          }
+        });
+
+    Slider spacingSlider = view.findViewById(R.id.spacingSlider);
+    spacingSlider.addOnChangeListener(
+        (slider, value, fromUser) -> {
+          float pixelsInDp = view.getResources().getDisplayMetrics().density;
+          for (MaterialButtonToggleGroup toggleGroup : toggleGroups) {
+            toggleGroup.setSpacing((int) (value * pixelsInDp));
+          }
+        });
+    MaterialSwitch opticalCenterSwitch = view.findViewById(R.id.switch_optical_center);
+    opticalCenterSwitch.setOnCheckedChangeListener(
+        (buttonView, isChecked) -> {
+          for (MaterialButton button : buttons) {
+            button.setOpticalCenterEnabled(isChecked);
+          }
+        });
     return view;
   }
 
@@ -109,9 +131,8 @@ public class ButtonToggleGroupDemoFragment extends DemoFragment {
   }
 
   private static void adjustParams(LayoutParams layoutParams, int orientation) {
-    layoutParams.width = orientation == VERTICAL
-        ? LayoutParams.MATCH_PARENT
-        : LayoutParams.WRAP_CONTENT;
+    layoutParams.width =
+        orientation == VERTICAL ? LayoutParams.MATCH_PARENT : LayoutParams.WRAP_CONTENT;
   }
 
   @LayoutRes

@@ -18,6 +18,9 @@ package io.material.catalog.carousel;
 
 import io.material.catalog.R;
 
+import static com.google.android.material.carousel.CarouselLayoutManager.ALIGNMENT_CENTER;
+import static com.google.android.material.carousel.CarouselLayoutManager.ALIGNMENT_START;
+
 import android.os.Bundle;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.SnapHelper;
@@ -25,6 +28,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AutoCompleteTextView;
+import android.widget.RadioButton;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.google.android.material.carousel.CarouselLayoutManager;
@@ -33,13 +37,14 @@ import com.google.android.material.carousel.HeroCarouselStrategy;
 import com.google.android.material.divider.MaterialDividerItemDecoration;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.slider.Slider;
-import com.google.android.material.slider.Slider.OnSliderTouchListener;
 import io.material.catalog.feature.DemoFragment;
 
 /** A fragment that displays the hero variant of the Carousel. */
 public class HeroCarouselDemoFragment extends DemoFragment {
 
   private MaterialDividerItemDecoration horizontalDivider;
+  private CarouselAdapter adapter;
+  private Slider positionSlider;
 
   @NonNull
   @Override
@@ -64,11 +69,12 @@ public class HeroCarouselDemoFragment extends DemoFragment {
     MaterialSwitch drawDividers = view.findViewById(R.id.draw_dividers_switch);
     MaterialSwitch enableFlingSwitch = view.findViewById(R.id.enable_fling_switch);
     AutoCompleteTextView itemCountDropdown = view.findViewById(R.id.item_count_dropdown);
-    Slider positionSlider = view.findViewById(R.id.position_slider);
+    positionSlider = view.findViewById(R.id.position_slider);
+    RadioButton startAlignButton = view.findViewById(R.id.start_align);
+    RadioButton centerAlignButton = view.findViewById(R.id.center_align);
 
-    // A start-aligned hero carousel
-    RecyclerView heroStartRecyclerView =
-        view.findViewById(R.id.hero_start_carousel_recycler_view);
+    // A hero carousel
+    RecyclerView heroStartRecyclerView = view.findViewById(R.id.hero_start_carousel_recycler_view);
     CarouselLayoutManager heroStartCarouselLayoutManager =
         new CarouselLayoutManager(new HeroCarouselStrategy());
     heroStartCarouselLayoutManager.setDebuggingEnabled(
@@ -80,8 +86,7 @@ public class HeroCarouselDemoFragment extends DemoFragment {
         (buttonView, isChecked) -> {
           heroStartRecyclerView.setBackgroundResource(
               isChecked ? R.drawable.dashed_outline_rectangle : 0);
-          heroStartCarouselLayoutManager.setDebuggingEnabled(
-              heroStartRecyclerView, isChecked);
+          heroStartCarouselLayoutManager.setDebuggingEnabled(heroStartRecyclerView, isChecked);
         });
 
     drawDividers.setOnCheckedChangeListener(
@@ -93,10 +98,15 @@ public class HeroCarouselDemoFragment extends DemoFragment {
           }
         });
 
-    CarouselAdapter adapter =
+    adapter =
         new CarouselAdapter(
-            (item, position) -> heroStartRecyclerView.scrollToPosition(position),
+            (item, position) -> {
+              heroStartRecyclerView.scrollToPosition(position);
+              positionSlider.setValue(position + 1);
+            },
             R.layout.cat_carousel_item);
+    heroStartRecyclerView.addOnScrollListener(
+        CarouselDemoUtils.createUpdateSliderOnScrollListener(positionSlider, adapter));
 
     SnapHelper disableFlingSnapHelper = new CarouselSnapHelper();
     SnapHelper enableFlingSnapHelper = new CarouselSnapHelper(false);
@@ -125,17 +135,19 @@ public class HeroCarouselDemoFragment extends DemoFragment {
                 updateSliderRange(positionSlider, adapter)));
 
     positionSlider.addOnSliderTouchListener(
-        new OnSliderTouchListener() {
-          @Override
-          public void onStartTrackingTouch(@NonNull Slider slider) {}
+        CarouselDemoUtils.createScrollToPositionSliderTouchListener(heroStartRecyclerView));
 
-          @Override
-          public void onStopTrackingTouch(@NonNull Slider slider) {
-            heroStartRecyclerView.smoothScrollToPosition((int) slider.getValue() - 1);
-          }
-        });
+    startAlignButton.setOnClickListener(
+        v -> heroStartCarouselLayoutManager.setCarouselAlignment(ALIGNMENT_START));
+    centerAlignButton.setOnClickListener(
+        v -> heroStartCarouselLayoutManager.setCarouselAlignment(ALIGNMENT_CENTER));
 
     heroStartRecyclerView.setAdapter(adapter);
+  }
+
+  @Override
+  public void onStart() {
+    super.onStart();
     adapter.submitList(CarouselData.createItems(), updateSliderRange(positionSlider, adapter));
   }
 

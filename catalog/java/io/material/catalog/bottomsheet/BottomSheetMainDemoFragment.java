@@ -19,8 +19,6 @@ package io.material.catalog.bottomsheet;
 import io.material.catalog.R;
 
 import android.app.Activity;
-import android.os.Build.VERSION;
-import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.view.LayoutInflater;
@@ -52,16 +50,12 @@ public class BottomSheetMainDemoFragment extends DemoFragment {
 
         @Override
         public void handleOnBackStarted(@NonNull BackEventCompat backEvent) {
-          if (VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            persistentBottomSheetBehavior.startBackProgress(backEvent.toBackEvent());
-          }
+          persistentBottomSheetBehavior.startBackProgress(backEvent);
         }
 
         @Override
         public void handleOnBackProgressed(@NonNull BackEventCompat backEvent) {
-          if (VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            persistentBottomSheetBehavior.updateBackProgress(backEvent.toBackEvent());
-          }
+          persistentBottomSheetBehavior.updateBackProgress(backEvent);
         }
 
         @Override
@@ -71,9 +65,7 @@ public class BottomSheetMainDemoFragment extends DemoFragment {
 
         @Override
         public void handleOnBackCancelled() {
-          if (VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            persistentBottomSheetBehavior.cancelBackProgress();
-          }
+          persistentBottomSheetBehavior.cancelBackProgress();
         }
       };
 
@@ -107,7 +99,7 @@ public class BottomSheetMainDemoFragment extends DemoFragment {
     // Opt in to perform swipe to dismiss animation when dismissing bottom sheet dialog.
     bottomSheetDialog.setDismissWithAnimation(true);
     windowPreferencesManager.applyEdgeToEdgePreference(bottomSheetDialog.getWindow());
-    View bottomSheetInternal = bottomSheetDialog.findViewById(R.id.design_bottom_sheet);
+    View bottomSheetInternal = bottomSheetDialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
     BottomSheetBehavior.from(bottomSheetInternal).setPeekHeight(peekHeightPx);
     View button = view.findViewById(R.id.bottomsheet_button);
     button.setOnClickListener(
@@ -161,6 +153,12 @@ public class BottomSheetMainDemoFragment extends DemoFragment {
     persistentBottomSheetBehavior = BottomSheetBehavior.from(bottomSheetPersistent);
     persistentBottomSheetBehavior.addBottomSheetCallback(
         createBottomSheetCallback(bottomSheetText));
+    bottomSheetPersistent.post(
+        () -> {
+          int state = persistentBottomSheetBehavior.getState();
+          updateStateTextView(bottomSheetPersistent, bottomSheetText, state);
+          updateBackHandlingEnabled(state);
+        });
     setupBackHandling(persistentBottomSheetBehavior);
 
     Button button1 = view.findViewById(R.id.cat_bottomsheet_button);
@@ -259,39 +257,39 @@ public class BottomSheetMainDemoFragment extends DemoFragment {
   }
 
   private BottomSheetCallback createBottomSheetCallback(@NonNull TextView text) {
-    // Set up BottomSheetCallback
-    BottomSheetCallback bottomSheetCallback =
-        new BottomSheetCallback() {
-          @Override
-          public void onStateChanged(@NonNull View bottomSheet, int newState) {
+    return new BottomSheetCallback() {
+      @Override
+      public void onStateChanged(@NonNull View bottomSheet, int newState) {
+        updateStateTextView(bottomSheet, text, newState);
+      }
 
-            switch (newState) {
-              case BottomSheetBehavior.STATE_DRAGGING:
-                text.setText(R.string.cat_bottomsheet_state_dragging);
-                break;
-              case BottomSheetBehavior.STATE_EXPANDED:
-                text.setText(R.string.cat_bottomsheet_state_expanded);
-                break;
-              case BottomSheetBehavior.STATE_COLLAPSED:
-                text.setText(R.string.cat_bottomsheet_state_collapsed);
-                break;
-              case BottomSheetBehavior.STATE_HALF_EXPANDED:
-                BottomSheetBehavior<View> bottomSheetBehavior =
-                    BottomSheetBehavior.from(bottomSheet);
-                text.setText(
-                    getString(
-                        R.string.cat_bottomsheet_state_half_expanded,
-                        bottomSheetBehavior.getHalfExpandedRatio()));
-                break;
-              default:
-                break;
-            }
-          }
+      @Override
+      public void onSlide(@NonNull View bottomSheet, float slideOffset) {}
+    };
+  }
 
-          @Override
-          public void onSlide(@NonNull View bottomSheet, float slideOffset) {}
-        };
-    return bottomSheetCallback;
+  private void updateStateTextView(@NonNull View bottomSheet, @NonNull TextView text, int state) {
+    switch (state) {
+      case BottomSheetBehavior.STATE_DRAGGING:
+        text.setText(R.string.cat_bottomsheet_state_dragging);
+        break;
+      case BottomSheetBehavior.STATE_EXPANDED:
+        text.setText(R.string.cat_bottomsheet_state_expanded);
+        break;
+      case BottomSheetBehavior.STATE_COLLAPSED:
+        text.setText(R.string.cat_bottomsheet_state_collapsed);
+        break;
+      case BottomSheetBehavior.STATE_HALF_EXPANDED:
+        BottomSheetBehavior<View> bottomSheetBehavior =
+            BottomSheetBehavior.from(bottomSheet);
+        text.setText(
+            getString(
+                R.string.cat_bottomsheet_state_half_expanded,
+                bottomSheetBehavior.getHalfExpandedRatio()));
+        break;
+      default:
+        break;
+    }
   }
 
   private void setupBackHandling(BottomSheetBehavior<View> behavior) {
@@ -302,25 +300,29 @@ public class BottomSheetMainDemoFragment extends DemoFragment {
         new BottomSheetCallback() {
           @Override
           public void onStateChanged(@NonNull View bottomSheet, int newState) {
-            switch (newState) {
-              case BottomSheetBehavior.STATE_EXPANDED:
-              case BottomSheetBehavior.STATE_HALF_EXPANDED:
-                persistentBottomSheetBackCallback.setEnabled(true);
-                break;
-              case BottomSheetBehavior.STATE_COLLAPSED:
-              case BottomSheetBehavior.STATE_HIDDEN:
-                persistentBottomSheetBackCallback.setEnabled(false);
-                break;
-              case BottomSheetBehavior.STATE_DRAGGING:
-              case BottomSheetBehavior.STATE_SETTLING:
-              default:
-                // Do nothing, only change callback enabled for "stable" states.
-                break;
-            }
+            updateBackHandlingEnabled(newState);
           }
 
           @Override
           public void onSlide(@NonNull View bottomSheet, float slideOffset) {}
         });
+  }
+
+  private void updateBackHandlingEnabled(int state) {
+    switch (state) {
+      case BottomSheetBehavior.STATE_EXPANDED:
+      case BottomSheetBehavior.STATE_HALF_EXPANDED:
+        persistentBottomSheetBackCallback.setEnabled(true);
+        break;
+      case BottomSheetBehavior.STATE_COLLAPSED:
+      case BottomSheetBehavior.STATE_HIDDEN:
+        persistentBottomSheetBackCallback.setEnabled(false);
+        break;
+      case BottomSheetBehavior.STATE_DRAGGING:
+      case BottomSheetBehavior.STATE_SETTLING:
+      default:
+        // Do nothing, only change callback enabled for "stable" states.
+        break;
+    }
   }
 }

@@ -16,10 +16,16 @@ edit text.
 
 **Contents**
 
+*   [Design and API Documentation](#design-and-api-documentation)
 *   [Using text fields](#using-text-fields)
 *   [Filled text field](#filled-text-field)
 *   [Outlined text field](#outlined-text-field)
 *   [Theming](#theming-text-fields)
+
+## Design and API Documentation
+
+*   [Google Material3 Spec](https://material.io/components/text-fields/overview)
+*   [API Reference](https://developer.android.com/reference/com/google/android/material/textfield/package-summary)
 
 ## Using text fields
 
@@ -42,6 +48,15 @@ page.
 
 </com.google.android.material.textfield.TextInputLayout>
 ```
+
+API and source code:
+
+*   `TextInputLayout`
+    *   [Class definition](https://developer.android.com/reference/com/google/android/material/textfield/TextInputLayout)
+    *   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/textfield/TextInputLayout.java)
+*   `TextInputEditText`
+    *   [Class definition](https://developer.android.com/reference/com/google/android/material/textfield/TextInputEditText)
+    *   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/textfield/TextInputEditText.java)
 
 **Note:** A text field is composed of a `TextInputLayout` and a
 `TextInputEditText` as a direct child. Using an `EditText` as the child might
@@ -392,15 +407,6 @@ surrounded by other content and components.
 
 ### Filled text field examples
 
-API and source code:
-
-*   `TextInputLayout`
-    *   [Class definition](https://developer.android.com/reference/com/google/android/material/textfield/TextInputLayout)
-    *   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/textfield/TextInputLayout.java)
-*   `TextInputEditText`
-    *   [Class definition](https://developer.android.com/reference/com/google/android/material/textfield/TextInputEditText)
-    *   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/textfield/TextInputEditText.java)
-
 The following example shows a filled text field with a label.
 
 ![Filled text field](assets/textfields/textfields_filled.png)
@@ -456,8 +462,8 @@ indicator, optional helper/error text and optional leading/trailing icons.
 
 Element                | Attribute                | Related method(s)                                                                       | Default value
 ---------------------- | ------------------------ | --------------------------------------------------------------------------------------- | -------------
-**Color**              | `app:boxBackgroundColor` | `setBoxBackgroundColor`<br/>`setBoxBackgroundColorResource`<br/>`getBoxBackgroundColor` | `?attr/colorSurfaceVariant` (see all [states](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/textfield/res/color/m3_textfield_filled_background_color.xml))
-**Shape**              | `app:shapeAppearance`    | N/A                                                                                     | `?attr/shapeAppearanceSmallComponent`
+**Color**              | `app:boxBackgroundColor` | `setBoxBackgroundColor`<br/>`setBoxBackgroundColorResource`<br/>`getBoxBackgroundColor` | `?attr/colorSurfaceContainerHighest` (see all [states](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/textfield/res/color/m3_textfield_filled_background_color.xml))
+**Shape**              | `app:shapeAppearance`    | N/A                                                                                     | `?attr/shapeAppearanceCornerExtraSmall`
 **Text field enabled** | `android:enabled`        | `setEnabled`                                                                            | `true`
 
 #### Leading icon attributes
@@ -580,15 +586,6 @@ helps simplify the layout.
 
 ### Outlined text field examples
 
-API and source code:
-
-*   `TextInputLayout`
-    *   [Class definition](https://developer.android.com/reference/com/google/android/material/textfield/TextInputLayout)
-    *   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/textfield/TextInputLayout.java)
-*   `TextInputEditText`
-    *   [Class definition](https://developer.android.com/reference/com/google/android/material/textfield/TextInputEditText)
-    *   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/textfield/TextInputEditText.java)
-
 The following example shows an outlined text field.
 
 ![Outlined text field](assets/textfields/textfields_outlined.png)
@@ -646,7 +643,7 @@ Element                  | Attribute                   | Related method(s)      
 **Stroke error color**   | `app:boxStrokeErrorColor`   | `setBoxStrokeErrorColor`<br/>`getBoxStrokeErrorColor`                        | `?attr/colorError`
 **Stroke width**         | `app:boxStrokeWidth`        | N/A                                                                          | `1dp`
 **Stroke focused width** | `app:boxStrokeWidthFocused` | N/A                                                                          | `2dp`
-**Shape**                | `app:shapeAppearance`       | N/A                                                                          | `?attr/shapeAppearanceSmallComponent`
+**Shape**                | `app:shapeAppearance`       | N/A                                                                          | `?attr/shapeAppearanceCornerExtraSmall`
 **Text field enabled**   | `android:enabled`           | `setEnabled`                                                                 | `true`
 
 #### Leading icon attributes
@@ -666,6 +663,7 @@ Element                        | Attribute                | Related method(s)   
 **Color**                      | `android:textColorHint`  | `setDefaultHintTextColor`<br/>`getDefaultHintTextColor` | `?attr/colorOnSurfaceVariant` (see all [states](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/textfield/res/color/m3_textfield_label_color.xml))
 **Collapsed (floating) color** | `app:hintTextColor`      | `setHintTextColor`<br/>`getHintTextColor`               | `?attr/colorPrimary`
 **Typography**                 | `app:hintTextAppearance` | `setHintTextAppearance`                                 | `?attr/textAppearanceBodySmall`
+**Max number of lines**        | `app:hintMaxLines`       | `setHintMaxLines`<br/>`getHintMaxLines`                 | `1`
 
 **Note:** The `android:hint` should always be set on the `TextInputLayout`
 instead of on the `EditText` in order to avoid unintended behaviors.
@@ -779,7 +777,7 @@ text fields and affects other components:
     <item name="colorError">@color/shrine_red</item>
     <item name="textAppearanceTitleMedium">@style/TextAppearance.App.TitleMedium</item>
     <item name="textAppearanceBodySmall">@style/TextAppearance.App.BodySmall</item>
-    <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.App.SmallComponent</item>
+    <item name="shapeAppearanceCornerExtraSmall">@style/ShapeAppearance.App.Corner.ExtraSmall</item>
 </style>
 
 <style name="TextAppearance.App.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
@@ -792,7 +790,7 @@ text fields and affects other components:
     <item name="android:fontFamily">@font/rubik</item>
 </style>
 
-<style name="ShapeAppearance.App.SmallComponent" parent="ShapeAppearance.Material3.SmallComponent">
+<style name="ShapeAppearance.App.Corner.ExtraSmall" parent="ShapeAppearance.Material3.Corner.ExtraSmall">
     <item name="cornerFamily">cut</item>
     <item name="cornerSize">4dp</item>
 </style>
@@ -809,7 +807,7 @@ all text fields but does not affect other components:
 
 <style name="Widget.App.TextInputLayout" parent="Widget.Material3.TextInputLayout.*">
     <item name="materialThemeOverlay">@style/ThemeOverlay.App.TextInputLayout</item>
-    <item name="shapeAppearance">@style/ShapeAppearance.App.SmallComponent</item>
+    <item name="shapeAppearance">@style/ShapeAppearance.App.Corner.ExtraSmall</item>
     <item name="hintTextColor">?attr/colorOnSurface</item>
 </style>
 

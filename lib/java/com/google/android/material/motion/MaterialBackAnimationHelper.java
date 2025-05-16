@@ -19,16 +19,14 @@ import com.google.android.material.R;
 
 import android.animation.TimeInterpolator;
 import android.content.Context;
-import android.os.Build.VERSION_CODES;
+import android.util.Log;
 import android.view.View;
-import android.window.BackEvent;
+import android.view.animation.PathInterpolator;
+import androidx.activity.BackEventCompat;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.annotation.RestrictTo;
 import androidx.annotation.RestrictTo.Scope;
-import androidx.core.view.animation.PathInterpolatorCompat;
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
 
 /**
  * Base helper class for views that support back handling, which assists with common animation
@@ -39,28 +37,25 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 @RestrictTo(Scope.LIBRARY_GROUP)
 public abstract class MaterialBackAnimationHelper<V extends View> {
 
+  private static final String TAG = "MaterialBackHelper";
   private static final int HIDE_DURATION_MAX_DEFAULT = 300;
   private static final int HIDE_DURATION_MIN_DEFAULT = 150;
   private static final int CANCEL_DURATION_DEFAULT = 100;
 
-  @NonNull private final TimeInterpolator progressInterpolator;
+  @NonNull
+  private final TimeInterpolator progressInterpolator = new PathInterpolator(0.1f, 0.1f, 0, 1);
 
   @NonNull protected final V view;
   protected final int hideDurationMax;
   protected final int hideDurationMin;
   protected final int cancelDuration;
 
-  @Nullable private BackEvent backEvent;
+  @Nullable private BackEventCompat backEvent;
 
   public MaterialBackAnimationHelper(@NonNull V view) {
     this.view = view;
 
     Context context = view.getContext();
-    progressInterpolator =
-        MotionUtils.resolveThemeInterpolator(
-            context,
-            R.attr.motionEasingStandardDecelerateInterpolator,
-            PathInterpolatorCompat.create(0, 0, 0, 1));
     hideDurationMax =
         MotionUtils.resolveThemeDuration(
             context, R.attr.motionDurationMedium2, HIDE_DURATION_MAX_DEFAULT);
@@ -72,39 +67,39 @@ public abstract class MaterialBackAnimationHelper<V extends View> {
             context, R.attr.motionDurationShort2, CANCEL_DURATION_DEFAULT);
   }
 
-  protected float interpolateProgress(float progress) {
+  public float interpolateProgress(float progress) {
     return progressInterpolator.getInterpolation(progress);
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
-  protected void onStartBackProgress(@NonNull BackEvent backEvent) {
-    this.backEvent = backEvent;
-  }
-
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
-  protected void onUpdateBackProgress(@NonNull BackEvent backEvent) {
-    if (this.backEvent == null) {
-      throw new IllegalStateException("Must call startBackProgress() before updateBackProgress()");
-    }
+  protected void onStartBackProgress(@NonNull BackEventCompat backEvent) {
     this.backEvent = backEvent;
   }
 
   @Nullable
-  public BackEvent onHandleBackInvoked() {
-    BackEvent finalBackEvent = this.backEvent;
+  protected BackEventCompat onUpdateBackProgress(@NonNull BackEventCompat backEvent) {
+    if (this.backEvent == null) {
+      Log.w(TAG, "Must call startBackProgress() before updateBackProgress()");
+    }
+    BackEventCompat finalBackEvent = this.backEvent;
+    this.backEvent = backEvent;
+    return finalBackEvent;
+  }
+
+  @Nullable
+  public BackEventCompat onHandleBackInvoked() {
+    BackEventCompat finalBackEvent = this.backEvent;
     this.backEvent = null;
     return finalBackEvent;
   }
 
-  @RequiresApi(VERSION_CODES.UPSIDE_DOWN_CAKE)
-  @CanIgnoreReturnValue
-  @NonNull
-  protected BackEvent onCancelBackProgress() {
+  @Nullable
+  protected BackEventCompat onCancelBackProgress() {
     if (this.backEvent == null) {
-      throw new IllegalStateException(
+      Log.w(
+          TAG,
           "Must call startBackProgress() and updateBackProgress() before cancelBackProgress()");
     }
-    BackEvent finalBackEvent = this.backEvent;
+    BackEventCompat finalBackEvent = this.backEvent;
     this.backEvent = null;
     return finalBackEvent;
   }

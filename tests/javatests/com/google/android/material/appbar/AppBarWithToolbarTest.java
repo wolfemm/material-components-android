@@ -394,7 +394,11 @@ public class AppBarWithToolbarTest extends AppBarLayoutBaseTest {
     final int appbarHeight = mAppBar.getHeight();
     final int longSwipeAmount = 3 * appbarHeight / 2;
 
-    assertEquals(0, ((MaterialShapeDrawable) mAppBar.getBackground()).getAlpha());
+    MaterialShapeDrawable backgroundDrawable = mAppBar.getMaterialShapeBackground();
+
+    assertEquals(
+        mAppBar.getResources().getColor(R.color.material_blue_grey_900),
+        backgroundDrawable.getResolvedTintColor());
 
     // Perform a swipe-up gesture across the horizontal center of the screen.
     performVerticalSwipeUpGesture(
@@ -403,9 +407,8 @@ public class AppBarWithToolbarTest extends AppBarLayoutBaseTest {
         originalAppbarBottom + 3 * longSwipeAmount / 2,
         longSwipeAmount);
 
-    assertEquals(255, ((MaterialShapeDrawable) mAppBar.getBackground()).getAlpha());
     assertEquals(
         mAppBar.getResources().getColor(R.color.material_blue_grey_950),
-        ((MaterialShapeDrawable) mAppBar.getBackground()).getFillColor().getDefaultColor());
+        backgroundDrawable.getResolvedTintColor());
   }
 }

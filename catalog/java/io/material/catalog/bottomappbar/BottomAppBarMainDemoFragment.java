@@ -30,6 +30,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityManager;
+import android.widget.LinearLayout;
 import androidx.activity.BackEventCompat;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.LayoutRes;
@@ -57,20 +59,18 @@ import java.util.List;
 /** A fragment that displays the main Bottom App Bar demos for the Catalog app. */
 public class BottomAppBarMainDemoFragment extends DemoFragment {
 
+  private AccessibilityManager am;
+
   private final OnBackPressedCallback bottomDrawerOnBackPressedCallback =
       new OnBackPressedCallback(/* enabled= */ false) {
         @Override
         public void handleOnBackStarted(@NonNull BackEventCompat backEvent) {
-          if (VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            bottomDrawerBehavior.startBackProgress(backEvent.toBackEvent());
-          }
+          bottomDrawerBehavior.startBackProgress(backEvent);
         }
 
         @Override
         public void handleOnBackProgressed(@NonNull BackEventCompat backEvent) {
-          if (VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            bottomDrawerBehavior.updateBackProgress(backEvent.toBackEvent());
-          }
+          bottomDrawerBehavior.updateBackProgress(backEvent);
         }
 
         @Override
@@ -80,9 +80,7 @@ public class BottomAppBarMainDemoFragment extends DemoFragment {
 
         @Override
         public void handleOnBackCancelled() {
-          if (VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            bottomDrawerBehavior.cancelBackProgress();
-          }
+          bottomDrawerBehavior.cancelBackProgress();
         }
       };
 
@@ -133,6 +131,7 @@ public class BottomAppBarMainDemoFragment extends DemoFragment {
     toolbar.setNavigationOnClickListener(v -> getActivity().onBackPressed());
 
     coordinatorLayout = view.findViewById(R.id.coordinator_layout);
+    LinearLayout content = view.findViewById(R.id.bottomappbar_content);
     bar = view.findViewById(R.id.bar);
     ((AppCompatActivity) getActivity()).setSupportActionBar(bar);
     barNavView = bar.getChildAt(0);
@@ -148,9 +147,15 @@ public class BottomAppBarMainDemoFragment extends DemoFragment {
           return false;
         });
 
+    if (VERSION.SDK_INT >= VERSION_CODES.M) {
+      am = getContext().getSystemService(AccessibilityManager.class);
+      if (am != null && am.isTouchExplorationEnabled()) {
+        bar.post(() -> content.setPadding(0, content.getPaddingTop(), 0, bar.getMeasuredHeight()));
+      }
+    }
+
     setUpDemoControls(view);
     setUpBottomAppBarShapeAppearance();
-
     return view;
   }
 
@@ -181,7 +186,13 @@ public class BottomAppBarMainDemoFragment extends DemoFragment {
     MaterialSwitch barScrollSwitch = view.findViewById(R.id.bar_scroll_switch);
     barScrollSwitch.setChecked(bar.getHideOnScroll());
     barScrollSwitch.setOnCheckedChangeListener(
-        (buttonView, isChecked) -> bar.setHideOnScroll(isChecked));
+        (buttonView, isChecked) -> {
+          if (am != null && am.isTouchExplorationEnabled()) {
+            bar.setHideOnScroll(false);
+          } else {
+            bar.setHideOnScroll(isChecked);
+          }
+        });
   }
 
   @Override
@@ -216,25 +227,12 @@ public class BottomAppBarMainDemoFragment extends DemoFragment {
     bottomDrawerBehavior = BottomSheetBehavior.from(bottomDrawer);
     bottomDrawerBehavior.setUpdateImportantForAccessibilityOnSiblings(true);
     bottomDrawerBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+    bottomDrawer.post(() -> updateBackHandlingEnabled(bottomDrawerBehavior.getState()));
     bottomDrawerBehavior.addBottomSheetCallback(
         new BottomSheetCallback() {
           @Override
           public void onStateChanged(@NonNull View bottomSheet, int newState) {
-            switch (newState) {
-              case BottomSheetBehavior.STATE_EXPANDED:
-              case BottomSheetBehavior.STATE_HALF_EXPANDED:
-                bottomDrawerOnBackPressedCallback.setEnabled(true);
-                break;
-              case BottomSheetBehavior.STATE_COLLAPSED:
-              case BottomSheetBehavior.STATE_HIDDEN:
-                bottomDrawerOnBackPressedCallback.setEnabled(false);
-                break;
-              case BottomSheetBehavior.STATE_DRAGGING:
-              case BottomSheetBehavior.STATE_SETTLING:
-              default:
-                // Do nothing, only change callback enabled for "stable" states.
-                break;
-            }
+            updateBackHandlingEnabled(newState);
 
             if (newState == BottomSheetBehavior.STATE_HIDDEN) {
               barNavView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
@@ -251,6 +249,24 @@ public class BottomAppBarMainDemoFragment extends DemoFragment {
 
     bar.setNavigationOnClickListener(
         v -> bottomDrawerBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED));
+  }
+
+  private void updateBackHandlingEnabled(int state) {
+    switch (state) {
+      case BottomSheetBehavior.STATE_EXPANDED:
+      case BottomSheetBehavior.STATE_HALF_EXPANDED:
+      case BottomSheetBehavior.STATE_COLLAPSED:
+        bottomDrawerOnBackPressedCallback.setEnabled(true);
+        break;
+      case BottomSheetBehavior.STATE_HIDDEN:
+        bottomDrawerOnBackPressedCallback.setEnabled(false);
+        break;
+      case BottomSheetBehavior.STATE_DRAGGING:
+      case BottomSheetBehavior.STATE_SETTLING:
+      default:
+        // Do nothing, only change callback enabled for "stable" states.
+        break;
+    }
   }
 
   private void showSnackbar(CharSequence text) {
