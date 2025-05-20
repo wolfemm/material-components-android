@@ -384,7 +384,7 @@ public class MaterialDatePicker<S> extends DialogFragment {
    * @param view The view that was clicked.
    */
   public void onPositiveButtonClick(@NonNull View view) {
-    setResult(RESULT_TYPE_POSITIVE, null);
+    setResult(RESULT_TYPE_POSITIVE, getSelection());
     for (MaterialPickerOnPositiveButtonClickListener<? super S> listener :
         onPositiveButtonClickListeners) {
       listener.onPositiveButtonClick(getSelection());
