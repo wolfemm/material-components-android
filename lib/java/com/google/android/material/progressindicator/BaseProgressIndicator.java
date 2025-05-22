@@ -28,6 +28,7 @@ import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
 import android.os.SystemClock;
 import android.util.AttributeSet;
+import android.util.Pair;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
@@ -49,6 +50,9 @@ import com.google.android.material.internal.ThemeEnforcement;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicReference;
+
+import kotlin.Triple;
 
 /**
  * This class contains the common functions shared in different types of progress indicators. This
@@ -121,8 +125,6 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
    * @see #showDelay
    */
   private final int minHideDelay;
-
-  private long lastShowStartTime = -1L;
 
   AnimatorDurationScaleProvider animatorDurationScaleProvider;
 
@@ -198,18 +200,59 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
   }
 
   // ******************** Visibility control **********************
+  private final AtomicReference<Triple<Boolean, Integer, Long>> scheduledAction = new AtomicReference<>(null);
+
+  private void showHideInternal(Boolean show) {
+    if (show) {
+      internalShow();
+    } else {
+      internalHide();
+    }
+  }
+
+  private void scheduleVisibilityChange(Boolean show, long delay) {
+    removeCallbacks(delayedAction);
+
+    if ((show && getVisibility() == VISIBLE) || (!show && getVisibility() != VISIBLE)) {
+      // No need to continue, as the component is already in the desired visibility state.
+      scheduledAction.set(null);
+      return;
+    }
+
+    if (delay == 0) {
+      scheduledAction.set(null);
+      showHideInternal(show);
+
+      return;
+    }
+
+    final Triple<Boolean, Integer, Long> currentAction = scheduledAction.getAndSet(null);
+    final long uptime = SystemClock.uptimeMillis();
+    long effectiveDelay = delay;
+    long scheduledAt = uptime;
+
+    if (currentAction != null && currentAction.getFirst() == show) {
+      final long adjustedDelay = uptime - currentAction.getThird() - delay;
+
+      if (adjustedDelay < 1) {
+        showHideInternal(show);
+        return;
+      } else {
+        effectiveDelay = adjustedDelay;
+        scheduledAt = currentAction.getThird();
+      }
+    }
+
+    scheduledAction.set(new Triple(show, delay, scheduledAt));
+    postDelayed(delayedAction, effectiveDelay);
+  }
 
   /**
    * Shows the progress indicator. If {@code showDelay} has been set to a positive value, wait until
    * the delay elapsed before starting the show action. Otherwise start showing immediately.
    */
   public void show() {
-    if (showDelay > 0) {
-      removeCallbacks(delayedShow);
-      postDelayed(delayedShow, showDelay);
-    } else {
-      delayedShow.run();
-    }
+    scheduleVisibilityChange(true, showDelay);
   }
 
   /**
@@ -219,10 +262,6 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
    * @see #onVisibilityChanged(View, int)
    */
   private void internalShow() {
-    if (minHideDelay > 0) {
-      // The hide delay is positive, saves the time of starting show action.
-      lastShowStartTime = SystemClock.uptimeMillis();
-    }
     setVisibility(VISIBLE);
   }
 
@@ -231,20 +270,7 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
    * until the delay elapsed before starting the hide action. Otherwise start hiding immediately.
    */
   public void hide() {
-    if (getVisibility() != VISIBLE) {
-      // No need to hide, as the component is still invisible.
-      removeCallbacks(delayedShow);
-      return;
-    }
-
-    removeCallbacks(delayedHide);
-    long timeElapsedSinceShowStart = SystemClock.uptimeMillis() - lastShowStartTime;
-    boolean enoughTimeElapsed = timeElapsedSinceShowStart >= minHideDelay;
-    if (enoughTimeElapsed) {
-      delayedHide.run();
-      return;
-    }
-    postDelayed(delayedHide, /* delayMillis= */ minHideDelay - timeElapsedSinceShowStart);
+    scheduleVisibilityChange(false, minHideDelay);
   }
 
   /**
@@ -303,8 +329,8 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
   @Override
   protected void onDetachedFromWindow() {
     // Removes the delayedHide and delayedShow runnables from the queue if it has been scheduled.
-    removeCallbacks(delayedHide);
-    removeCallbacks(delayedShow);
+    removeCallbacks(delayedAction);
+    scheduledAction.set(null);
     ((DrawableWithAnimatedVisibilityChange) getCurrentDrawable()).hideNow();
     unregisterAnimationCallbacks();
     super.onDetachedFromWindow();
@@ -973,30 +999,13 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
 
   // ************************ In-place defined parameters ****************************
 
-  /**
-   * The runnable, which executes the start action. This is used to schedule delayed show actions.
-   *
-   * @see #show()
-   */
-  private final Runnable delayedShow =
+  private final Runnable delayedAction =
       new Runnable() {
         @Override
         public void run() {
-          internalShow();
-        }
-      };
+          Triple<Boolean, Integer, Long> scheduled = scheduledAction.getAndSet(null);
 
-  /**
-   * The runnable, which executes the hide action. This is used to schedule delayed hide actions.
-   *
-   * @see #hide()
-   */
-  private final Runnable delayedHide =
-      new Runnable() {
-        @Override
-        public void run() {
-          internalHide();
-          lastShowStartTime = -1L;
+          showHideInternal(scheduled.getFirst());
         }
       };
 
