@@ -49,8 +49,6 @@ import com.google.android.material.internal.ThemeEnforcement;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * This class contains the common functions shared in different types of progress indicators. This
@@ -206,24 +204,11 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
    * the delay elapsed before starting the show action. Otherwise start showing immediately.
    */
   public void show() {
-    if (pendingDelayedAction.compareAndSet(delayedHide, null)) {
-      removeCallbacks(delayedHide);
-    }
-
-    if (getVisibility() == VISIBLE) {
-      // No need to show, as the component is already visible.
-      pendingDelayedAction.compareAndSet(delayedShow, null);
-      return;
-    }
-
     if (showDelay > 0) {
-      if (pendingDelayedAction.getAndSet(delayedShow) != delayedShow) {
-        postDelayed(delayedShow, showDelay);
-      }
-    } else {
       removeCallbacks(delayedShow);
-      pendingDelayedAction.compareAndSet(delayedShow, null);
-      internalShow();
+      postDelayed(delayedShow, showDelay);
+    } else {
+      delayedShow.run();
     }
   }
 
@@ -246,31 +231,20 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
    * until the delay elapsed before starting the hide action. Otherwise start hiding immediately.
    */
   public void hide() {
-    if (pendingDelayedAction.compareAndSet(delayedShow, null)) {
-      removeCallbacks(delayedShow);
-    }
-
     if (getVisibility() != VISIBLE) {
-      // No need to hide, as the component is already invisible.
-      pendingDelayedAction.compareAndSet(delayedHide, null);
+      // No need to hide, as the component is still invisible.
+      removeCallbacks(delayedShow);
       return;
     }
 
+    removeCallbacks(delayedHide);
     long timeElapsedSinceShowStart = SystemClock.uptimeMillis() - lastShowStartTime;
     boolean enoughTimeElapsed = timeElapsedSinceShowStart >= minHideDelay;
     if (enoughTimeElapsed) {
-      if (pendingDelayedAction.compareAndSet(delayedHide, null)) {
-        removeCallbacks(delayedHide);
-      }
-      internalHide();
+      delayedHide.run();
       return;
     }
-
-    Runnable previousPending = pendingDelayedAction.getAndSet(delayedHide);
-    if (previousPending != delayedHide) {
-      removeCallbacks(previousPending);
-      postDelayed(delayedHide, /*delayMillis=*/ minHideDelay - timeElapsedSinceShowStart);
-    }
+    postDelayed(delayedHide, /* delayMillis= */ minHideDelay - timeElapsedSinceShowStart);
   }
 
   /**
@@ -617,8 +591,8 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
       // Uses theme primary color for indicator by default. Indicator color cannot be empty.
       indicatorColors =
           new int[] {
-            MaterialColors.getColor(
-                getContext(), androidx.appcompat.R.attr.colorPrimary, -1)
+              MaterialColors.getColor(
+                  getContext(), androidx.appcompat.R.attr.colorPrimary, -1)
           };
     }
     if (!Arrays.equals(getIndicatorColor(), indicatorColors)) {
@@ -935,8 +909,8 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
 
         if (!getIndeterminateDrawable().isVisible()
             || animatorDurationScaleProvider.getSystemAnimatorDurationScale(
-                    getContext().getContentResolver())
-                == 0) {
+            getContext().getContentResolver())
+            == 0) {
           switchIndeterminateModeCallback.onAnimationEnd(getIndeterminateDrawable());
         } else {
           getIndeterminateDrawable().getAnimatorDelegate().requestCancelAnimatorAfterCurrentCycle();
@@ -999,8 +973,6 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
 
   // ************************ In-place defined parameters ****************************
 
-  private final AtomicReference<Runnable> pendingDelayedAction = new AtomicReference<Runnable>(null);
-
   /**
    * The runnable, which executes the start action. This is used to schedule delayed show actions.
    *
@@ -1010,9 +982,7 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
       new Runnable() {
         @Override
         public void run() {
-          if (pendingDelayedAction.compareAndSet(delayedShow, null)) {
-            internalShow();
-          }
+          internalShow();
         }
       };
 
@@ -1025,10 +995,8 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
       new Runnable() {
         @Override
         public void run() {
-          if (pendingDelayedAction.compareAndSet(delayedHide, null)) {
-            internalHide();
-            lastShowStartTime = -1L;
-          }
+          internalHide();
+          lastShowStartTime = -1L;
         }
       };
 
