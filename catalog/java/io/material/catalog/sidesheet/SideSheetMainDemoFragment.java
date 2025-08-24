@@ -20,14 +20,18 @@ import io.material.catalog.R;
 
 import static android.view.View.NO_ID;
 
+import android.content.Context;
+import android.graphics.Color;
 import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.appcompat.widget.TooltipCompat;
 import android.util.SparseIntArray;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.TextView;
 import androidx.activity.BackEventCompat;
@@ -41,7 +45,9 @@ import androidx.annotation.StringRes;
 import androidx.annotation.StyleRes;
 import androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
 import com.google.android.material.button.MaterialButtonToggleGroup;
+import com.google.android.material.resources.MaterialAttributes;
 import com.google.android.material.sidesheet.SideSheetBehavior;
 import com.google.android.material.sidesheet.SideSheetCallback;
 import com.google.android.material.sidesheet.SideSheetDialog;
@@ -233,6 +239,8 @@ public class SideSheetMainDemoFragment extends DemoFragment {
 
     View standardSideSheetCloseIconButton = sideSheet.findViewById(closeIconButtonId);
     standardSideSheetCloseIconButton.setOnClickListener(v -> hideSideSheet(sideSheetBehavior));
+    TooltipCompat.setTooltipText(
+        standardSideSheetCloseIconButton, standardSideSheetCloseIconButton.getContentDescription());
 
     setupBackHandling(sideSheet, sideSheetBehavior);
 
@@ -288,6 +296,7 @@ public class SideSheetMainDemoFragment extends DemoFragment {
         closeIconButtonIdRes);
   }
 
+  @SuppressWarnings("RestrictTo")
   private void setUpModalSheet(
       @StyleRes int sheetThemeOverlayRes,
       @LayoutRes int sheetContentLayoutRes,
@@ -298,19 +307,29 @@ public class SideSheetMainDemoFragment extends DemoFragment {
       @IdRes int closeIconButtonIdRes) {
     showSheetButton.setOnClickListener(
         v1 -> {
+          Context context = requireContext();
           SideSheetDialog sheetDialog =
               sheetThemeOverlayRes == NO_ID
-                  ? new SideSheetDialog(requireContext())
-                  : new SideSheetDialog(requireContext(), sheetThemeOverlayRes);
+                  ? new SideSheetDialog(context)
+                  : new SideSheetDialog(context, sheetThemeOverlayRes);
 
           sheetDialog.setContentView(sheetContentLayoutRes);
+
           View modalSheetContent = sheetDialog.findViewById(sheetContentRootIdRes);
           if (modalSheetContent != null) {
             TextView modalSideSheetTitle = modalSheetContent.findViewById(sheetTitleIdRes);
             modalSideSheetTitle.setText(sheetTitleStringRes);
           }
-          new WindowPreferencesManager(requireContext())
-              .applyEdgeToEdgePreference(sheetDialog.getWindow());
+
+          boolean edgeToEdgeEnabled = new WindowPreferencesManager(context).isEdgeToEdgeEnabled();
+          boolean isLightTheme =
+              MaterialAttributes.resolveBoolean(
+                  context, androidx.appcompat.R.attr.isLightTheme, true);
+          Window window = sheetDialog.getWindow();
+          sheetDialog.setFitsSystemWindows(!edgeToEdgeEnabled);
+          window.setNavigationBarColor(Color.TRANSPARENT);
+          WindowCompat.getInsetsController(window, window.getDecorView())
+              .setAppearanceLightStatusBars(edgeToEdgeEnabled && isLightTheme);
 
           sheetDialog
               .getBehavior()
@@ -325,6 +344,9 @@ public class SideSheetMainDemoFragment extends DemoFragment {
           View modalSideSheetCloseIconButton = sheetDialog.findViewById(closeIconButtonIdRes);
           if (modalSideSheetCloseIconButton != null) {
             modalSideSheetCloseIconButton.setOnClickListener(v2 -> sheetDialog.hide());
+            TooltipCompat.setTooltipText(
+                modalSideSheetCloseIconButton,
+                modalSideSheetCloseIconButton.getContentDescription());
           }
 
           sheetDialog.show();

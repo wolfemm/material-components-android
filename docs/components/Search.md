@@ -7,95 +7,60 @@ iconId: search
 path: /catalog/search/
 -->
 
-# Search Bar
+# Search
 
-Search is a navigation pattern which provides a floating search field with a
-surface that allows product-specific branding and additional navigation icons.
+[Search](https://m3.material.io/components/search/overview) is a navigation
+method that allows people to quickly find information across an app. Users input
+a query into the search bar or text field of the search view and then see
+related results.
 
-![search bar light](assets/search/search-bar-light.png)
+![Search bar light](assets/search/search_hero.png)
 
-**Contents**
+1.  Search bar
+2.  Search view
 
-*   [Design and API Documentation](#design-and-api-documentation)
-*   [Using search components](#using-search-components)
-*   [Search Bar](#search-bar)
-*   [Search View](#search-view)
-*   [Putting it all together](#putting-it-all-together)
-*   [Predictive Back](#predictive-back)
+**Search bar** is a persistent and prominent search field at the top of the
+screen and **search view** is a full-screen modal typically opened by selecting
+a search icon.
 
-## Design and API Documentation
+**Note:** Images use various dynamic color schemes.
 
-*   [Google Material3 Spec](https://material.io/components/search/overview)
-*   [API Reference](https://developer.android.com/reference/com/google/android/material/search/package-summary)
+## Design & API documentation
 
-## Using search components
+*   [Material 3 (M3) spec](https://m3.material.io/components/search/overview)
+*   [API reference](https://developer.android.com/reference/com/google/android/material/search/package-summary)
 
-Before you can use the Material Search components, you need to add a dependency to
-the Material Components for Android library. For more information, go to the
-[Getting started](https://github.com/material-components/material-components-android/tree/master/docs/getting-started.md)
-page.
+## Anatomy
 
-Note: Material Search was introduced in `1.8.0`. To use Material Search, make
-sure you're depending on [library version `1.8.0`](https://github.com/material-components/material-components-android/releases/tag/1.8.0)
-or later.
+#### Search bar
 
-### Making Search Components accessible
-
-You should set a content description on a search bar and search view components
-via the `android:contentDescription` attribute or `setContentDescription` method
-so that screen readers such as TalkBack are able to announce their purpose or
-action. Text rendered in these components are automatically provided to
-accessibility services, so additional content labels are usually unnecessary.
-
-## Search Bar
-
-The `SearchBar` component provides an implementation of the floating search
-field. It extends `Toolbar`, so it supports a navigation icon, menu items, and
-any other `Toolbar` APIs. Additionally, the `SearchBar` comes with a hint
-`TextView` and supports nesting a centered branding element.
-
-Since `SearchBar` extends `Toolbar`, you can set up your `SearchBar` as an
-`ActionBar` via [`AppCompatActivity#setSupportActionBar`](https://developer.android.com/reference/kotlin/androidx/appcompat/app/AppCompatActivity#setSupportActionBar(androidx.appcompat.widget.Toolbar)), and inflate a menu by
-overriding the `onCreateOptionsMenu` method. However, if using the default
-magnifying glass `navigationIcon`, you may need to set
-`app:forceDefaultNavigationOnClickListener="true"` on your `SearchBar` so that
-the search icon doesn't act as a back button due to the Activity's `ActionBar`
-setup flow.
-
-Alternatively, you can choose to not set up your `SearchBar` as an `ActionBar`,
-and instead just use `Toolbar`'s `inflateMenu` and `setOnMenuItemClickListener`
-methods:
-
-```java
-searchBar.inflateMenu(R.menu.searchbar_menu);
-searchBar.setOnMenuItemClickListener(
-    menuItem -> {
-      // Handle menuItem click.
-      return true;
-    });
-```
-
-Note: `SearchBar` aims to provide a consistent search bar across all apps, so
-it does not support setting a custom background via `android:background`.
-
-API and source code:
-
-*   `SearchBar`
-    *   [Class definition](https://developer.android.com/reference/com/google/android/material/search/SearchBar)
-    *   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/search/SearchBar.java)
-
-### Anatomy and key properties
-
-The following is an anatomy diagram for the search bar:
-
-![Search bar anatomy diagram](assets/search/search-bar-anatomy.png)
+![Search bar anatomy diagram](assets/search/search_bar_anatomy.png)
 
 1.  Container
 2.  Leading icon button
 3.  Supporting text
 4.  Avatar or trailing icon (optional)
 
-### Attributes
+#### Search view
+
+![Search view anatomy diagram](assets/search/search_view_anatomy.png)
+
+1.  Container
+2.  Header
+3.  Leading icon button
+4.  Supporting text
+5.  Trailing icon button
+6.  Input text
+7.  Divider
+
+More details on anatomy items in the
+[component guidelines](https://m3.material.io/components/search/guidelines#ea5fe21e-f47d-421c-ab40-c45811329e00).
+
+## Key properties
+
+### Search bar
+
+#### Attributes
 
 The following attributes can be changed for `SearchBar`:
 
@@ -114,86 +79,93 @@ Element                                  | Attribute                     | Relat
 **Flag for default margins**             | `app:defaultMarginsEnabled`   | --                                          | `true`
 **Flag for navigation icon**             | `app:hideNavigationIcon`      | --                                          | `false`
 
-## Styles
+#### Styles
 
-Element                       | Style
------------------------------ | ----------------------------
-**Search Bar Default style**  | `Widget.Material3.SearchBar`
-**Search View Toolbar style** | `Widget.Material3.SearchView.Toolbar`
-**Search View Toolbar height**| `@dimen/m3_searchview_height`
+Element                        | Style                                 | Theme attribute
+------------------------------ | ------------------------------------- | ---------------
+**Search Bar Default style**   | `Widget.Material3.SearchBar`          | `?attr/materialSearchBarStyle`
+**Search View Toolbar style**  | `Widget.Material3.SearchView.Toolbar` | `?attr/materialSearchViewToolbarStyle`
+**Search View Toolbar height** | `@dimen/m3_searchview_height`         | `?attr/materialSearchViewToolbarHeight`
 
-Default search bar style theme attribute: `?attr/materialSearchBarStyle`.
+### Search view
 
-Search view toolbar theme attribute: `?attr/materialSearchViewToolbarStyle`.
-Search view toolbar height theme attribute:
-`?attr/materialSearchViewToolbarHeight`.
+#### Attributes
 
-### Scrolling Behavior
+The following attributes can be changed for `SearchView`:
 
-The `SearchBar` can either be used as a fixed, scroll-away, or lift on scroll
-search field.
+Element                            | Attribute                    | Related method(s)                           | Default value
+---------------------------------- | ---------------------------- | ------------------------------------------- | -------------
+**Search text appearance**         | `android:textAppearance`     | `setTextAppearance`<br/>`getTextAppearance` | `@style/TextAppearance.Material3.SearchBar`
+**Search text**                    | `android:text`               | `setText`<br/>`getText`                     | `null`
+**Search hint**                    | `android:hint`               | `setHint`<br/>`getHint`                     | `null`
+**Color**                          | `app:backgroundTint`         | --                                          | `?attr/colorSurfaceContainerHigh`
+**Flag for navigation icon**       | `app:hideNavigationIcon`     | --                                          | `true`
+**Flag for `DrawerArrowDrawable`** | `app:useDrawerArrowDrawable` | --                                          | `false`
+**Flag for soft keyboard**         | `app:autoShowKeyboard`       | --                                          | `true`
 
-#### Fixed Mode
+#### Styles
 
-To set up the fixed mode, simply position the `SearchBar` on top of the rest of
-your layout's contents and do not set up any scrolling behaviors or
-AppBarLayout. The `SearchBar` will remain fixed in place as the content is
-scrolled beneath it.
+| Element  | Style                         | Theme attribute                 |
+| -------- | ----------------------------- | ------------------------------- |
+| **Search View Default style** | `Widget.Material3.SearchView` | `?attr/materialSearchViewStyle` |
 
-#### Scroll-away Mode
+## Code implementation
 
-To set up the scroll-away mode, use a top-level `CoordinatorLayout` and place
-the `SearchBar` within an `AppBarLayout`. Then, place the `AppBarLayout` below
-the scrolling view (usually a `RecyclerView` or `NestedScrollView`) in the
-`CoordinatorLayout`, and set
-`app:layout_behavior="@string/searchbar_scrolling_view_behavior"` on the
-scrolling view. This scrolling behavior makes the `AppBarLayout` transparent and
-not elevated so there are no undesirable shadows. It also adjusts the scrolling
-child so that the `SearchBar` will overlap the rest of your content and appear
-to be floating above it. See the
-[Putting it all together](#putting-it-all-together) section below for an example
-of how to set up this behavior.
+Before you can use the Material Search components, you need to add a dependency
+to the Material components for Android library. For more information, go to the
+[Getting started](https://github.com/material-components/material-components-android/tree/master/docs/getting-started.md)
+page.
 
-Additionally, if your app is going edge-to-edge, consider adding
-`app:statusBarForeground="?attr/colorSurface"` to your `AppBarLayout` in order
-to avoid overlap between the `SearchBar` and status bar content on scroll.
+Note: Material Search was introduced in `1.8.0`. To use Material Search, make
+sure you're depending on
+[library version `1.8.0`](https://github.com/material-components/material-components-android/releases/tag/1.8.0)
+or later.
 
-#### Lift On Scroll Mode
+API and source code
 
-To set up the lift on scroll mode, use a top-level `CoordinatorLayout` and place
-the `SearchBar` within an `AppBarLayout`. Then, place the `AppBarLayout` below
-the scrolling view (usually a `RecyclerView` or `NestedScrollView`) in the
-`CoordinatorLayout`, and set
-`app:layout_behavior="@string/appbar_scrolling_view_behavior"` on the scrolling
-view. On the `SearchBar`, set `app:liftOnScroll=true` and set a
-`app:liftOnScrollColor` to change the color of the `SearchBar` as the
-`AppBarLayout` is lifting.
+*   [Class definition](https://developer.android.com/reference/com/google/android/material/search/SearchView)
 
-See the [Putting it all together](#putting-it-all-together) section below for an
-example of how to set up this behavior.
+*   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/search/SearchView.java)
 
-### Toolbar Transitions
+### Adding Search bar
 
-The `SearchBar` component also provides transitions to and from a `Toolbar`,
-e.g., for a contextual multi-select flow. These transitions are implemented as
-expand and collapse animations, and can be started by calling `SearchBar#expand`
-and `SearchBar#collapse`, respectively. Additionally, if you are using an
-`AppBarLayout` in conjunction with the `SearchBar`, you may pass in a reference
-to your `AppBarLayout` to these methods so that its visibility and offset can be
-taken into account for the animations.
+The `SearchBar` component provides an implementation of the floating search
+field. It extends `Toolbar`, so it supports a navigation icon, menu items, and
+any other `Toolbar` APIs. Additionally, the `SearchBar` comes with a hint
+`TextView` and supports nesting a centered branding element.
 
-Lastly, make sure to add the following to your back pressed handling method, in
-order to collapse the contextual `Toolbar` into the `SearchBar` when the user
-presses the system back button:
+Since `SearchBar` extends `Toolbar`, you can set up your `SearchBar` as an
+`ActionBar` via
+[`AppCompatActivity#setSupportActionBar`](https://developer.android.com/reference/kotlin/androidx/appcompat/app/AppCompatActivity#setSupportActionBar\(androidx.appcompat.widget.Toolbar\)),
+and inflate a menu by overriding the `onCreateOptionsMenu` method. However, if
+using the default magnifying glass `navigationIcon`, you may need to set
+`app:forceDefaultNavigationOnClickListener="true"` on your `SearchBar` so that
+the search icon doesn't act as a back button due to the Activity's `ActionBar`
+setup flow.
+
+Alternatively, you can choose to not set up your `SearchBar` as an `ActionBar`,
+and instead just use `Toolbar`'s `inflateMenu` and `setOnMenuItemClickListener`
+methods:
 
 ```java
-if (searchBar.collapse(contextualToolbar, appBarLayout)) {
-  // Clear selection.
-  return;
-}
+searchBar.inflateMenu(R.menu.searchbar_menu);
+searchBar.setOnMenuItemClickListener(
+    menuItem -> {
+      // Handle menuItem click.
+      return true;
+    });
 ```
 
-## Search View
+Note: `SearchBar` aims to provide a consistent search bar across all apps, so it
+does not support setting a custom background via `android:background`.
+
+API and source code:
+
+*   `SearchBar`
+    *   [Class definition](https://developer.android.com/reference/com/google/android/material/search/SearchBar)
+    *   [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/search/SearchBar.java)
+
+### Adding Search view
 
 The `SearchView` component provides an implementation of a full-screen search
 view which can be used to display back navigation, a search hint and text, menu
@@ -217,9 +189,9 @@ method, so you can use any of the traditional
 [EditText APIs](https://developer.android.com/reference/android/widget/EditText)
 to configure the search field (`setText()`, `addTextChangedListener()`, etc.).
 
-Here is an example of how you can carry over the search text to
-the `SearchBar`, as well as hide the `SearchView` when the user finishes typing
-and presses enter:
+Here is an example of how you can carry over the search text to the `SearchBar`,
+as well as hide the `SearchView` when the user finishes typing and presses
+enter:
 
 ```java
 searchView
@@ -232,51 +204,15 @@ searchView
         });
 ```
 
-### Anatomy and key properties
+### Making search components accessible
 
-The following is an anatomy diagram for the search view:
+You should set a content description on a search bar and search view components
+via the `android:contentDescription` attribute or `setContentDescription` method
+so that screen readers such as TalkBack are able to announce their purpose or
+action. Text rendered in these components are automatically provided to
+accessibility services, so additional content labels are usually unnecessary.
 
-![Search view anatomy diagram](assets/search/search-view-anatomy.png)
-
-1.  Container
-2.  Header
-3.  Leading icon button
-4.  Supporting text
-5.  Trailing icon button
-6.  Input text
-7.  Divider
-
-### Attributes
-
-The following attributes can be changed for `SearchView`:
-
-Element                            | Attribute                    | Related method(s)                           | Default value
----------------------------------- | ---------------------------- | ------------------------------------------- | -------------
-**Search text appearance**         | `android:textAppearance`     | `setTextAppearance`<br/>`getTextAppearance` | `@style/TextAppearance.Material3.SearchBar`
-**Search text**                    | `android:text`               | `setText`<br/>`getText`                     | `null`
-**Search hint**                    | `android:hint`               | `setHint`<br/>`getHint`                     | `null`
-**Color**                          | `app:backgroundTint`         | --                                          | `?attr/colorSurfaceContainerHigh`
-**Flag for navigation icon**       | `app:hideNavigationIcon`     | --                                          | `true`
-**Flag for `DrawerArrowDrawable`** | `app:useDrawerArrowDrawable` | --                                          | `false`
-**Flag for soft keyboard**         | `app:autoShowKeyboard`       | --                                          | `true`
-
-## Styles
-
-Element                       | Style
------------------------------ | -----------------------------
-**Search View Default style** | `Widget.Material3.SearchView`
-
-Default search view style theme attribute: `?attr/materialSearchViewStyle`.
-
-### Expand and Collapse Animations
-
-One of the biggest advantages of using the `SearchView` in conjunction with an
-`SearchBar` is that you will get the expand and collapse animations for free. If
-you are just using a standalone `SearchView` without an `SearchBar`, then
-showing or hiding the `SearchView` will result in slide up and slide down
-transitions.
-
-### Transition Listeners
+### Transition listeners
 
 If you want to get callbacks for when the `SearchView` transitions between its
 different animation states, you can add an `SearchView.TransitionListener` via
@@ -291,7 +227,30 @@ searchView.addTransitionListener(
     });
 ```
 
-### Soft Input Modes
+### Predictive back
+
+The `SearchView` component automatically supports
+[predictive back](/third_party/java_src/android_libs/material_components/docs/foundations/PredictiveBack.md)
+when it is set up with and connected to a `SearchBar`, as mentioned in the
+sections above. No further integration is required on the app side other than
+the general predictive back prerequisites and migration steps mentioned
+[here](/third_party/java_src/android_libs/material_components/docs/foundations/PredictiveBack.md#usage).
+
+Visit the
+[predictive back design guidelines](https://m3.material.io/components/search/guidelines#3f2d4e47-2cf5-4c33-b6e1-5368ceaade55)
+to see how the component behaves when a user swipes back.
+
+## Customizing search bar
+
+### Expand and collapse animations
+
+One of the biggest advantages of using the `SearchView` in conjunction with an
+`SearchBar` is that you will get the expand and collapse animations for free. If
+you are just using a standalone `SearchView` without an `SearchBar`, then
+showing or hiding the `SearchView` will result in slide up and slide down
+transitions.
+
+### Soft input modes
 
 The recommended `windowSoftInputMode` when using an `SearchBar` and an
 `SearchView` is `adjustNothing`. There are a couple reasons for this:
@@ -316,7 +275,7 @@ Lastly, if you don't want the soft keyboard to show automatically when the
 `SearchView` is shown, you can set `app:autoShowKeyboard="false"` on your
 `SearchView`.
 
-### Translucent Status Bar
+### Translucent status bar
 
 `SearchBar` and `SearchView` come with support for a translucent status bar.
 
@@ -330,14 +289,14 @@ the `SearchView`. If you are using either `FLAG_TRANSLUCENT_STATUS`
 `SearchView` will automatically add an extra spacer surface so that it fills the
 space underneath the translucent status bar.
 
-### Menu to Back Arrow Animation
+### Menu to back arrow animation
 
 If you are using the `SearchBar` with a `NavigationDrawer`, you can set the
 `app:useDrawerArrowDrawable` attribute to `true` on your `SearchView` to enable
 the "hamburger" menu to back arrow icon animation. This animation will happen
 during the expand and collapse of the `SearchView`.
 
-### Search Prefix
+### Search prefix
 
 If you would like to show some prefix text before the main search `EditText`,
 you can make use of the `app:searchPrefixText` attribute. For example, setting
@@ -348,14 +307,14 @@ Additionally, with this pattern it is common to hide the back button to reduce
 clutter, as navigation can be handled outside of the search view. This can be
 accomplished by setting `app:hideNavigationIcon="true"` on your `SearchView`.
 
-## Search History, Suggestions, and Results
+### Search history, suggestions, and results
 
 `SearchView` is a view group component, meaning you can nest content inside of
 it such as:
 
-- Search history when the `SearchView` is first expanded
-- Search suggestions when the user is typing
-- Search results once the user submits the search
+-   Search history when the `SearchView` is first expanded
+-   Search suggestions when the user is typing
+-   Search results once the user submits the search
 
 ```xml
   <com.google.android.material.search.SearchView
@@ -368,8 +327,51 @@ it such as:
 
   </com.google.android.material.search.SearchView>
 ```
+### Scrolling behavior
 
-## Putting it all together
+The `SearchBar` can either be used as a fixed, scroll-away, or lift on scroll
+search field.
+
+#### Fixed mode
+
+To set up the fixed mode, simply position the `SearchBar` on top of the rest of
+your layout's contents and do not set up any scrolling behaviors or
+AppBarLayout. The `SearchBar` will remain fixed in place as the content is
+scrolled beneath it.
+
+#### Scroll-away mode
+
+To set up the scroll-away mode, use a top-level `CoordinatorLayout` and place
+the `SearchBar` within an `AppBarLayout`. Then, place the `AppBarLayout` below
+the scrolling view (usually a `RecyclerView` or `NestedScrollView`) in the
+`CoordinatorLayout`, and set
+`app:layout_behavior="@string/searchbar_scrolling_view_behavior"` on the
+scrolling view. This scrolling behavior makes the `AppBarLayout` transparent and
+not elevated so there are no undesirable shadows. It also adjusts the scrolling
+child so that the `SearchBar` will overlap the rest of your content and appear
+to be floating above it. See the
+[putting it all together](#putting-it-all-together) section below for an example
+of how to set up this behavior.
+
+Additionally, if your app is going edge-to-edge, consider adding
+`app:statusBarForeground="?attr/colorSurface"` to your `AppBarLayout` in order
+to avoid overlap between the `SearchBar` and status bar content on scroll.
+
+#### Lift on scroll mode
+
+To set up the lift on scroll mode, use a top-level `CoordinatorLayout` and place
+the `SearchBar` within an `AppBarLayout`. Then, place the `AppBarLayout` below
+the scrolling view (usually a `RecyclerView` or `NestedScrollView`) in the
+`CoordinatorLayout`, and set
+`app:layout_behavior="@string/appbar_scrolling_view_behavior"` on the scrolling
+view. On the `SearchBar`, set `app:liftOnScroll=true` and set a
+`app:liftOnScrollColor` to change the color of the `SearchBar` as the
+`AppBarLayout` is lifting.
+
+See the [putting it all together](#putting-it-all-together) section below for an
+example of how to set up this behavior.
+
+### Putting it all together
 
 Putting it all together and using the scroll-away mode, the `SearchBar` and
 `SearchView` widgets can be used in your layout as such:
@@ -454,22 +456,23 @@ Alternatively, an example of the lift on scroll mode is below:
   </com.google.android.material.search.SearchView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
 ```
+### Toolbar transitions
 
-## Predictive Back
+The `SearchBar` component also provides transitions to and from a `Toolbar`,
+e.g., for a contextual multi-select flow. These transitions are implemented as
+expand and collapse animations, and can be started by calling `SearchBar#expand`
+and `SearchBar#collapse`, respectively. Additionally, if you are using an
+`AppBarLayout` in conjunction with the `SearchBar`, you may pass in a reference
+to your `AppBarLayout` to these methods so that its visibility and offset can be
+taken into account for the animations.
 
-The `SearchView` component automatically supports
-[Predictive Back](../foundations/PredictiveBack.md) when it is set up with and
-connected to a `SearchBar`, as mentioned in the sections above. No further
-integration is required on the app side other than the general Predictive Back
-prerequisites and migration steps mentioned
-[here](../foundations/PredictiveBack.md#usage).
+Lastly, make sure to add the following to your back pressed handling method, in
+order to collapse the contextual `Toolbar` into the `SearchBar` when the user
+presses the system back button:
 
-Visit the
-[Predictive Back design guidelines](https://m3.material.io/components/search/guidelines#3f2d4e47-2cf5-4c33-b6e1-5368ceaade55)
-to see how the component behaves when a user swipes back.
-
-## API and source code
-
-* [Class definition](https://developer.android.com/reference/com/google/android/material/search/SearchView)
-
-* [Class source](https://github.com/material-components/material-components-android/tree/master/lib/java/com/google/android/material/search/SearchView.java)
+```java
+if (searchBar.collapse(contextualToolbar, appBarLayout)) {
+  // Clear selection.
+  return;
+}
+```

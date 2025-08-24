@@ -27,6 +27,7 @@ import static com.google.android.material.textfield.IconHelper.setIconOnClickLis
 import static com.google.android.material.textfield.IconHelper.setIconOnLongClickListener;
 import static com.google.android.material.textfield.IconHelper.setIconOnTouchListener;
 import static com.google.android.material.textfield.IconHelper.setIconScaleType;
+import static com.google.android.material.textfield.IconHelper.updateIconTooltip;
 
 import android.annotation.SuppressLint;
 import android.content.res.ColorStateList;
@@ -103,6 +104,11 @@ class StartCompoundLayout extends LinearLayout {
 
     addView(startIconView);
     addView(prefixTextView);
+
+    startIconView.setOnFocusableChangedListener(
+        (v, focusable) ->
+            updateIconTooltip(
+                startIconView, startIconOnLongClickListener, getStartIconContentDescription()));
   }
 
   private void initStartIconView(TintTypedArray a) {
@@ -262,6 +268,7 @@ class StartCompoundLayout extends LinearLayout {
   void setStartIconContentDescription(@Nullable CharSequence startIconContentDescription) {
     if (getStartIconContentDescription() != startIconContentDescription) {
       startIconView.setContentDescription(startIconContentDescription);
+      updateIconTooltip(startIconView, startIconOnLongClickListener, startIconContentDescription);
     }
   }
 

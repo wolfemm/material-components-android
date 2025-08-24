@@ -24,7 +24,6 @@ import static com.google.android.material.textfield.IndicatorViewController.COUN
 import static com.google.android.material.theme.overlay.MaterialThemeOverlay.wrap;
 
 import android.animation.ValueAnimator;
-import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
@@ -1465,7 +1464,7 @@ public class TextInputLayout extends LinearLayout implements OnGlobalLayoutListe
   }
 
   @Override
-  @TargetApi(VERSION_CODES.O)
+  @RequiresApi(VERSION_CODES.O)
   public void dispatchProvideAutofillStructure(@NonNull ViewStructure structure, int flags) {
     if (editText == null) {
       super.dispatchProvideAutofillStructure(structure, flags);
@@ -2453,7 +2452,8 @@ public class TextInputLayout extends LinearLayout implements OnGlobalLayoutListe
     if (placeholderTextView == null) {
       placeholderTextView = new AppCompatTextView(getContext());
       placeholderTextView.setId(R.id.textinput_placeholder);
-      placeholderTextView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+      placeholderTextView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+      placeholderTextView.setAccessibilityLiveRegion(ViewCompat.ACCESSIBILITY_LIVE_REGION_POLITE);
 
       placeholderFadeIn = createPlaceholderFadeTransition();
       placeholderFadeIn.setStartDelay(PLACEHOLDER_START_DELAY);
@@ -2461,6 +2461,17 @@ public class TextInputLayout extends LinearLayout implements OnGlobalLayoutListe
 
       setPlaceholderTextAppearance(placeholderTextAppearance);
       setPlaceholderTextColor(placeholderTextColor);
+
+      ViewCompat.setAccessibilityDelegate(
+          placeholderTextView,
+          new AccessibilityDelegateCompat() {
+            @Override
+            public void onInitializeAccessibilityNodeInfo(
+                @NonNull View host, @NonNull AccessibilityNodeInfoCompat info) {
+              super.onInitializeAccessibilityNodeInfo(host, info);
+              info.setVisibleToUser(false);
+            }
+          });
     }
 
     // If placeholder text is null, disable placeholder.
@@ -2531,7 +2542,6 @@ public class TextInputLayout extends LinearLayout implements OnGlobalLayoutListe
       TransitionManager.beginDelayedTransition(inputFrame, placeholderFadeIn);
       placeholderTextView.setVisibility(VISIBLE);
       placeholderTextView.bringToFront();
-      announceForAccessibility(placeholderText);
     }
   }
 
@@ -4533,6 +4543,19 @@ public class TextInputLayout extends LinearLayout implements OnGlobalLayoutListe
     }
 
     applyBoxAttributes();
+
+    if (getEndIconMode() == END_ICON_DROPDOWN_MENU) {
+      if (editText instanceof AutoCompleteTextView && !isEditable(editText)) {
+        // For non-editable dropdowns, the end icon is not clickable and focusable, because the
+        // whole field is a single touch target. The dropdown can be toggled programmatically by
+        // calling performClick() on the end icon.
+        getEndIconView().setFocusable(false);
+        getEndIconView().setClickable(false);
+      } else {
+        getEndIconView().setFocusable(true);
+        getEndIconView().setClickable(true);
+      }
+    }
   }
 
   private boolean isOnError() {
