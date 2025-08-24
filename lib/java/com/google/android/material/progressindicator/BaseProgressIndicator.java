@@ -226,6 +226,7 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
       return;
     }
 
+    @Nullable
     final Triple<Boolean, Integer, Long> currentAction = scheduledAction.getAndSet(null);
     final long uptime = SystemClock.uptimeMillis();
     long effectiveDelay = delay;
@@ -1003,9 +1004,12 @@ public abstract class BaseProgressIndicator<S extends BaseProgressIndicatorSpec>
       new Runnable() {
         @Override
         public void run() {
+          @Nullable
           Triple<Boolean, Integer, Long> scheduled = scheduledAction.getAndSet(null);
 
-          showHideInternal(scheduled.getFirst());
+          if (scheduled != null) {
+            showHideInternal(scheduled.getFirst());
+          }
         }
       };
 
